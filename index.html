@@ -104,7 +104,12 @@
   </section>
 </main>
 
-<script src="https://cdn.jsdelivr.net/pyodide/v0.26.4/full/pyodide.js"></script>
+<!-- ★★2026-09-03：★CDNをやめて★同梱に切り替えた
+     ★理由：Discord Activity のCSPで cdn.jsdelivr.net が弾かれ、
+       ★★実行ボタンが押せない状態になった（実測）。
+     ★同一オリジンなら★CSPを一切気にしなくてよい。
+     ★ライセンス：Pyodide は MPL-2.0（pyodide/LICENSE に全文・改変なし） -->
+<script src="./pyodide/pyodide.js"></script>
 <script>
 const $ = s => document.querySelector(s);
 /* ★★2026-09-03：Discord Activity で真っ白になった時の切り分け
@@ -119,7 +124,7 @@ window.addEventListener("error", e => {
 }, true);
 if (typeof loadPyodide === "undefined") {
   diag.style.background = "#2a0e0e"; diag.style.color = "#ED4245";
-  diag.textContent = "🚨 Pyodide(cdn.jsdelivr.net)が読めませんでした"
+  diag.textContent = "🚨 Pyodide(同梱)が読めませんでした"
     + "＝★DiscordのCSPで弾かれています。★URLマッピングでCDNを通す必要があります。";
 }
 const out = $("#out"), meta = $("#meta"), st = $("#st");
@@ -194,7 +199,7 @@ window.__show = () => {
 let py = null;
 (async () => {
   try {
-    py = await loadPyodide({ indexURL: "https://cdn.jsdelivr.net/pyodide/v0.26.4/full/" });
+    py = await loadPyodide({ indexURL: "./pyodide/" });
     /* ★Pythonから使える draw()/show() を生やす */
     py.runPython(`
 import js
