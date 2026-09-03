@@ -1,4 +1,6 @@
 {
-  "url": "https://sheet-increases-specifically-multi.trycloudflare.com",
-  "note": "★暁月ラボ同期サーバー（cloudflare tunnel）。★URLは立て直すたびに変わる"
+  "url": "https://akatsuki-lab-sync.izumoitachi.workers.dev",
+  "where": "cloudflare-workers",
+  "note": "★固定URL・★常時稼働・★無料（Durable Objects は 2025-04 からWorkers無料プランに入った）。★PCが落ちていても動く",
+  "自宅PC版": "_server/sync.py ＋ cloudflared。★同じプロトコルなのでsync.json のURLを差し替えれば戻せる"
 }
