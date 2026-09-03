@@ -1,0 +1,245 @@
+<meta charset="utf-8">
+<title>暁月ラボ ライブコーディング</title>
+<!--
+  ★暁月ラボ ライブコーディング（Discord Activity 用）
+  ★Hikârư（2026-09-03）：「Cをアプリみたいな画面でプログラムが実際にうごくようなの」
+
+  ★Pyodide（WebAssembly版CPython）をブラウザで動かす＝★サーバー不要・★本物のPython
+  ★Discord Activity は iframe なので、★このページがそのままVCの中で開く
+-->
+<style>
+  :root{
+    --bg:#0b0d12; --panel:#12151d; --line:#242a38; --ink:#e6e9f0; --dim:#8b93a7;
+    --accent:#8A2BE2; --ok:#57F287; --bad:#ED4245; --warn:#FEE75C;
+    --mono:ui-monospace,"Cascadia Code","Consolas","SFMono-Regular",monospace;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;height:100vh;display:flex;flex-direction:column;
+       background:var(--bg);color:var(--ink);
+       font:14px/1.6 system-ui,-apple-system,"Segoe UI","Noto Sans JP",sans-serif}
+
+  /* ── 上のバー ── */
+  header{display:flex;align-items:center;gap:12px;padding:10px 14px;
+         background:linear-gradient(90deg,#1a0f2e,#12151d);
+         border-bottom:1px solid var(--line);flex:0 0 auto}
+  .logo{font-weight:700;letter-spacing:.02em}
+  .logo b{color:#c9a7ff}
+  .status{font:12px/1 var(--mono);padding:4px 9px;border-radius:99px;
+          border:1px solid var(--line);color:var(--dim);white-space:nowrap}
+  .status.on{color:var(--ok);border-color:#1e4d33;background:#0e2a1b}
+  .status.load{color:var(--warn);border-color:#4d431e;background:#2a250e}
+  .who{margin-left:auto;display:flex;align-items:center;gap:8px;font-size:12px;color:var(--dim)}
+  .who img{width:24px;height:24px;border-radius:50%;border:1px solid var(--line)}
+
+  /* ── 本体：左にコード / 右に出力 ── */
+  main{flex:1 1 auto;display:grid;grid-template-columns:1fr 1fr;gap:1px;
+       background:var(--line);min-height:0}
+  section{background:var(--panel);display:flex;flex-direction:column;min-height:0;min-width:0}
+  .bar{display:flex;align-items:center;gap:8px;padding:7px 12px;
+       border-bottom:1px solid var(--line);font-size:12px;color:var(--dim);flex:0 0 auto}
+  .bar .sp{margin-left:auto}
+
+  textarea{flex:1 1 auto;width:100%;border:0;outline:0;resize:none;padding:12px 14px;
+           background:transparent;color:var(--ink);font:13px/1.65 var(--mono);tab-size:4}
+  pre{flex:1 1 auto;margin:0;padding:12px 14px;overflow:auto;white-space:pre;
+      font:12.5px/1.35 var(--mono);color:#d7dbe6}
+  pre .err{color:var(--bad)}
+  pre .note{color:var(--dim)}
+
+  /* ── ボタン ── */
+  button{font:inherit;font-size:12px;padding:6px 13px;border-radius:7px;cursor:pointer;
+         border:1px solid var(--line);background:#1b2030;color:var(--ink);transition:.15s}
+  button:hover{background:#232a3d}
+  button.go{background:var(--accent);border-color:#6d1fb8;font-weight:600}
+  button.go:hover{background:#9b45e8}
+  button:disabled{opacity:.45;cursor:not-allowed}
+
+  /* ── お題 ── */
+  .neta{display:flex;gap:6px;flex-wrap:wrap;padding:8px 12px;
+        border-top:1px solid var(--line);background:#0e1119;flex:0 0 auto}
+  .neta button{font-size:11px;padding:5px 10px;border-radius:99px}
+
+  /* ── 絵を描く場所 ── */
+  #stage{display:none;padding:10px;border-top:1px solid var(--line);background:#0e1119;flex:0 0 auto}
+  #stage.on{display:block}
+  canvas{max-width:100%;image-rendering:pixelated;border:1px solid var(--line);border-radius:6px;background:#000}
+
+  @media (max-width:760px){ main{grid-template-columns:1fr;grid-template-rows:1fr 1fr} }
+</style>
+
+<header>
+  <div class="logo">꒰ঌ₊⊹ <b>暁月ラボ</b> ライブコーディング ₊⊹໒꒱</div>
+  <div class="status load" id="st">Python を読み込み中…</div>
+  <div class="who" id="who"></div>
+</header>
+
+<main>
+  <section>
+    <div class="bar">
+      <span>コード</span>
+      <span class="sp"></span>
+      <button id="clear">消す</button>
+      <button class="go" id="run">▶ 実行 (Ctrl+Enter)</button>
+    </div>
+    <textarea id="code" spellcheck="false"></textarea>
+    <div class="neta" id="neta"></div>
+  </section>
+
+  <section>
+    <div class="bar">
+      <span>出力</span>
+      <span class="sp"></span>
+      <span id="meta" style="font:11px/1 var(--mono);color:var(--dim)"></span>
+    </div>
+    <pre id="out"><span class="note">実行するとここに出ます。</span></pre>
+    <div id="stage"><canvas id="cv" width="480" height="360"></canvas></div>
+  </section>
+</main>
+
+<script src="https://cdn.jsdelivr.net/pyodide/v0.26.4/full/pyodide.js"></script>
+<script>
+const $ = s => document.querySelector(s);
+const out = $("#out"), meta = $("#meta"), st = $("#st");
+
+/* ★お題（★全部このページで実際に動くことを前提に選んである） */
+const NETA = [
+ ["マンデルブロ",
+`for y in range(-14,15):
+    r=''
+    for x in range(-45,20):
+        c=complex(x/22-0.5, y/11); z=0; n=0
+        while abs(z)<2 and n<30:
+            z=z*z+c; n+=1
+        r+=' .:-=+*#%@'[min(9,n//3)]
+    print(r)`],
+ ["シェルピンスキー",
+`for i in range(24):
+    print(''.join('█' if (i & j)==j else ' ' for j in range(24)))`],
+ ["ウラムの螺旋",
+`def p(n):
+    return n>1 and all(n%i for i in range(2,int(n**.5)+1))
+x=y=0; dx,dy=0,-1; g={}
+for i in range(1, 41*41+1):
+    g[(x,y)]='●' if p(i) else '·'
+    if x==y or (x<0 and x==-y) or (x>0 and x==1-y): dx,dy=-dy,dx
+    x+=dx; y+=dy
+for r in range(-14,15):
+    print(''.join(g.get((c,r),' ') for c in range(-14,15)))`],
+ ["円周率200桁",
+`from decimal import Decimal, getcontext
+getcontext().prec = 260
+p = sum(Decimal(1)/16**k*(Decimal(4)/(8*k+1)-Decimal(2)/(8*k+4)
+        -Decimal(1)/(8*k+5)-Decimal(1)/(8*k+6)) for k in range(200))
+print(str(p)[:200])`],
+ ["クワイン",
+`s='s=%r;print(s%%s)';print(s%s)`],
+ ["★絵を描く",
+`# ★draw(x, y, r, g, b) でキャンバスに描けます
+import math
+for y in range(360):
+    for x in range(480):
+        d = math.hypot(x-240, y-180)
+        draw(x, y,
+             int(127+127*math.sin(d/9)),
+             int(127+127*math.sin(d/13+2)),
+             int(127+127*math.sin(d/17+4)))
+show()`],
+];
+
+const nb = $("#neta");
+NETA.forEach(([name, src]) => {
+  const b = document.createElement("button");
+  b.textContent = name;
+  b.onclick = () => { $("#code").value = src; };
+  nb.appendChild(b);
+});
+$("#code").value = NETA[0][1];
+
+/* ★キャンバス（★Pythonから draw()/show() で触れる） */
+const cv = $("#cv"), ctx = cv.getContext("2d");
+let img = null;
+window.__draw = (x, y, r, g, b) => {
+  if (!img) img = ctx.createImageData(cv.width, cv.height);
+  if (x < 0 || y < 0 || x >= cv.width || y >= cv.height) return;
+  const i = (y * cv.width + x) * 4;
+  img.data[i] = r; img.data[i+1] = g; img.data[i+2] = b; img.data[i+3] = 255;
+};
+window.__show = () => {
+  if (img) { ctx.putImageData(img, 0, 0); $("#stage").classList.add("on"); }
+};
+
+let py = null;
+(async () => {
+  try {
+    py = await loadPyodide({ indexURL: "https://cdn.jsdelivr.net/pyodide/v0.26.4/full/" });
+    /* ★Pythonから使える draw()/show() を生やす */
+    py.runPython(`
+import js
+def draw(x, y, r, g, b):
+    js.window.__draw(int(x), int(y), int(r), int(g), int(b))
+def show():
+    js.window.__show()
+`);
+    st.textContent = "Python " + py.runPython("import sys; sys.version.split()[0]") + " 準備OK";
+    st.className = "status on";
+    $("#run").disabled = false;
+  } catch (e) {
+    st.textContent = "読み込みに失敗: " + e;
+    st.className = "status";
+  }
+})();
+
+async function run() {
+  if (!py) return;
+  const src = $("#code").value;
+  $("#run").disabled = true;
+  out.textContent = "…実行中";
+  img = null; $("#stage").classList.remove("on");
+  ctx.clearRect(0, 0, cv.width, cv.height);
+  const t0 = performance.now();
+  let buf = "";
+  py.setStdout({ batched: s => { buf += s + "\n"; } });
+  py.setStderr({ batched: s => { buf += s + "\n"; } });
+  let err = null;
+  try {
+    await py.runPythonAsync(src);
+  } catch (e) {
+    err = String(e);
+  }
+  const dt = (performance.now() - t0) / 1000;
+  out.textContent = "";
+  if (buf) out.appendChild(document.createTextNode(buf));
+  if (err) {
+    const s = document.createElement("span");
+    s.className = "err";
+    s.textContent = "\n" + err.split("\n").slice(-6).join("\n");
+    out.appendChild(s);
+  }
+  if (!buf && !err) {
+    const s = document.createElement("span");
+    s.className = "note"; s.textContent = "（何も出ませんでした）";
+    out.appendChild(s);
+  }
+  meta.textContent = dt.toFixed(2) + "秒 ／ " + (buf.split("\n").length - 1) + "行";
+  $("#run").disabled = false;
+}
+
+$("#run").onclick = run;
+$("#run").disabled = true;
+$("#clear").onclick = () => { $("#code").value = ""; };
+document.addEventListener("keydown", e => {
+  if ((e.ctrlKey || e.metaKey) && e.key === "Enter") { e.preventDefault(); run(); }
+});
+
+/* ★Discord Activity として開かれた時は、誰が見ているかを出す
+   ★普通のブラウザで開いた時は何もしない（★両方で動く） */
+(async () => {
+  if (!/discordsays\.com|\/\.proxy\//.test(location.href) && !location.search.includes("frame_id")) return;
+  try {
+    const m = await import("https://cdn.jsdelivr.net/npm/@discord/embedded-app-sdk@1.9.0/+esm");
+    const sdk = new m.DiscordSDK(new URLSearchParams(location.search).get("client_id") || "");
+    await sdk.ready();
+    $("#who").textContent = "Discord Activity";
+  } catch (e) { /* ★失敗しても本体は動く */ }
+})();
+</script>
