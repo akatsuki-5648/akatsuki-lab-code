@@ -2,3 +2,4 @@ _check.js
 _server/_tunnel_url.txt
 _server/_cloudflared_path.txt
 __pycache__/
+_server/_tunnel.log
