@@ -56,6 +56,13 @@
   button.go:hover{background:#9b45e8}
   button:disabled{opacity:.45;cursor:not-allowed}
 
+  /* ── ★言語タブ（Python / Ruby）2026-09-03 ── */
+  .tabs{display:flex;gap:0;margin-right:4px}
+  .tabs button{border-radius:0;border-right:0;padding:5px 14px;font-size:12px}
+  .tabs button:first-child{border-radius:7px 0 0 7px}
+  .tabs button:last-child{border-radius:0 7px 7px 0;border-right:1px solid var(--line)}
+  .tabs button.sel{background:var(--accent);border-color:#6d1fb8;font-weight:600}
+
   /* ── お題 ── */
   .neta{display:flex;gap:6px;flex-wrap:wrap;padding:8px 12px;
         border-top:1px solid var(--line);background:#0e1119;flex:0 0 auto}
@@ -84,7 +91,10 @@
 <main>
   <section>
     <div class="bar">
-      <span>コード</span>
+      <div class="tabs" id="tabs">
+        <button data-lang="py" class="sel">🐍 Python</button>
+        <button data-lang="rb">💎 Ruby</button>
+      </div>
       <span class="sp"></span>
       <button id="clear">消す</button>
       <button class="go" id="run">▶ 実行 (Ctrl+Enter)</button>
@@ -110,6 +120,9 @@
      ★同一オリジンなら★CSPを一切気にしなくてよい。
      ★ライセンス：Pyodide は MPL-2.0（pyodide/LICENSE に全文・改変なし） -->
 <script src="./pyodide/pyodide.js"></script>
+<!-- ★Ruby 3.4（ruby.wasm・MIT・ruby/LICENSE に全文）★同梱＝CSPに当たらない
+     ★押されるまで wasm(29MB) は取りに行かない（★遅延読み込み） -->
+<script src="./ruby/browser.umd.js"></script>
 <script>
 const $ = s => document.querySelector(s);
 /* ★★2026-09-03：Discord Activity で真っ白になった時の切り分け
@@ -174,13 +187,80 @@ for y in range(360):
 show()`],
 ];
 
+/* ★★Rubyのお題（★全部このページで実際に動くことを確認して選んである） */
+const NETA_RB = [
+ ['マンデルブロ',
+`(-14..14).each do |y|
+  puts (-45..19).map { |x|
+    c = Complex(x/22.0 - 0.5, y/11.0); z = 0; n = 0
+    while z.abs < 2 && n < 30
+      z = z*z + c; n += 1
+    end
+    ' .:-=+*#%@'[[9, n/3].min]
+  }.join
+end`],
+ ['シェルピンスキー',
+`24.times { |i| puts (0...24).map { |j| (i & j) == j ? '█' : ' ' }.join }`],
+ ['素数と黄金比',
+`require 'prime'
+puts "100までの素数: #{Prime.first(25).join(' ')}"
+phi = (1 + Math.sqrt(5)) / 2
+puts "黄金比 = #{phi}"
+a, b = 0, 1
+12.times { a, b = b, a + b }
+puts "フィボナッチ比 = #{b.to_f / a}"`],
+ ['Rubyらしく書く',
+`# ★Rubyはブロックが気持ちいい
+puts (1..100).select { |n| n % 3 == 0 || n % 5 == 0 }.sum
+puts %w[apple banana cherry].map(&:upcase).join(' / ')
+puts (1..5).reduce(:*)               # 階乗
+puts ('a'..'e').zip(1..5).to_h.inspect`],
+ ['クワイン',
+`s = 's = %p; puts s %% s'; puts s % s`],
+ ['★絵を描く',
+`# ★draw(x, y, r, g, b) でキャンバスに描けます
+360.times do |y|
+  480.times do |x|
+    d = Math.hypot(x - 240, y - 180)
+    draw(x, y,
+         (127 + 127 * Math.sin(d / 9)).to_i,
+         (127 + 127 * Math.sin(d / 13 + 2)).to_i,
+         (127 + 127 * Math.sin(d / 17 + 4)).to_i)
+  end
+end
+show`],
+];
+/* ★★言語は Python / Ruby の2つ。★お題もボタンも切り替える */
+let LANG = "py";
 const nb = $("#neta");
-NETA.forEach(([name, src]) => {
-  const b = document.createElement("button");
-  b.textContent = name;
-  b.onclick = () => { $("#code").value = src; };
-  nb.appendChild(b);
+
+function 題を並べる(){
+  nb.textContent = "";
+  (LANG === "py" ? NETA : NETA_RB).forEach(([name, src]) => {
+    const b = document.createElement("button");
+    b.textContent = name;
+    b.onclick = () => { $("#code").value = src; };
+    nb.appendChild(b);
+  });
+}
+
+/* ★書きかけを言語ごとに覚えておく（★タブを行き来しても消えない） */
+const 下書き = { py: NETA[0][1], rb: NETA_RB[0][1] };
+
+document.querySelectorAll("#tabs button").forEach(b => {
+  b.onclick = () => {
+    if (b.dataset.lang === LANG) return;
+    下書き[LANG] = $("#code").value;      // ★今のを覚える
+    LANG = b.dataset.lang;
+    document.querySelectorAll("#tabs button")
+            .forEach(x => x.classList.toggle("sel", x === b));
+    $("#code").value = 下書き[LANG];
+    題を並べる();
+    状態を出す();
+  };
 });
+
+題を並べる();
 $("#code").value = NETA[0][1];
 
 /* ★キャンバス（★Pythonから draw()/show() で触れる） */
@@ -196,7 +276,78 @@ window.__show = () => {
   if (img) { ctx.putImageData(img, 0, 0); $("#stage").classList.add("on"); }
 };
 
-let py = null;
+/* ═══════════ ★Ruby 3.4（ruby.wasm）═══════════
+   ★29MBあるので★最初は読まない。★Rubyで実行が押された時に初めて取りに行く。
+   ★★出力は WASI 経由で console に出てしまうので、
+     ★Ruby側で $stdout を StringIO に差し替えて .string を返してもらう。 */
+let rb = null, rb待ち = null;
+
+async function ruby用意(){
+  if (rb) return rb;
+  if (rb待ち) return rb待ち;
+  rb待ち = (async () => {
+    st.textContent = "Ruby を読み込み中…(29MB)"; st.className = "status load";
+    const r = await fetch("./ruby/ruby.wasm");
+    const mod = await WebAssembly.compileStreaming(r);
+    const { vm } = await window["ruby-wasm-wasi"].DefaultRubyVM(mod);
+    /* ★Rubyからキャンバスを触れるようにする（★Pythonと同じ draw/show） */
+    vm.eval(`require 'js'
+def draw(x, y, r, g, b)
+  JS.global[:window].__draw(x.to_i, y.to_i, r.to_i, g.to_i, b.to_i)
+end
+def show
+  JS.global[:window].__show
+end`);
+    rb = vm;
+    return vm;
+  })();
+  return rb待ち;
+}
+
+/* ★★Rubyのコードの渡し方（2026-09-03 実測で作り直した）
+   ★文字列リテラルで渡すと壊れる：
+     ・#{} を逃がすと★展開されなくなる／逃がさないと★任意展開される
+     ・" ' \\ 改行 のどれか一つでも★組み合わせで破れる
+   ★★だからリテラルをやめて★UTF-8のバイト列で渡す。
+     ★これなら中身が何であっても★絶対に壊れない。 */
+function rubyバイト列(src){
+  const b = new TextEncoder().encode(src);
+  return "[" + Array.from(b).join(",") + "]";
+}
+
+async function ruby実行(src){
+  const vm = await ruby用意();
+  /* ★$stdout を StringIO にすげ替えて、★最後に .string を返してもらう
+     ★★エラー表示に★バッククォートを使わない（★Rubyでは★コマンド実行になる） */
+  const wrapped = [
+    "require 'stringio'",
+    "_ak_old = $stdout",
+    "$stdout = StringIO.new",
+    "_ak_src = " + rubyバイト列(src)
+        + ".pack('C*').force_encoding('UTF-8')",
+    "begin",
+    "  eval(_ak_src, TOPLEVEL_BINDING, '(akatsuki)')",
+    "rescue Exception => _e",
+    "  $stdout.puts(_e.class.to_s + ': ' + _e.message.to_s)",
+    "end",
+    "_ak_out = $stdout.string",
+    "$stdout = _ak_old",
+    "_ak_out",
+  ].join("\n");
+  return vm.eval(wrapped).toString();
+}
+function 状態を出す(){
+  if (LANG === "py"){
+    if (py){ st.textContent = "Python " + PYVER + " 準備OK";
+             st.className = "status on"; $("#run").disabled = false; }
+  } else {
+    st.textContent = rb ? "Ruby 3.4 準備OK" : "Ruby は実行時に読み込みます(29MB)";
+    st.className = rb ? "status on" : "status";
+    $("#run").disabled = false;   /* ★Rubyは押した時に読むので常に押せる */
+  }
+}
+
+let py = null, PYVER = "";
 (async () => {
   try {
     py = await loadPyodide({ indexURL: "./pyodide/" });
@@ -208,9 +359,8 @@ def draw(x, y, r, g, b):
 def show():
     js.window.__show()
 `);
-    st.textContent = "Python " + py.runPython("import sys; sys.version.split()[0]") + " 準備OK";
-    st.className = "status on";
-    $("#run").disabled = false;
+    PYVER = py.runPython("import sys; sys.version.split()[0]");
+    状態を出す();
   } catch (e) {
     st.textContent = "読み込みに失敗: " + e;
     st.className = "status";
@@ -218,21 +368,22 @@ def show():
 })();
 
 async function run() {
-  if (!py) return;
+  if (LANG === "py" && !py) return;   /* ★Rubyは py 無しでも走る */
   const src = $("#code").value;
   $("#run").disabled = true;
   out.textContent = "…実行中";
   img = null; $("#stage").classList.remove("on");
   ctx.clearRect(0, 0, cv.width, cv.height);
   const t0 = performance.now();
-  let buf = "";
-  py.setStdout({ batched: s => { buf += s + "\n"; } });
-  py.setStderr({ batched: s => { buf += s + "\n"; } });
-  let err = null;
-  try {
-    await py.runPythonAsync(src);
-  } catch (e) {
-    err = String(e);
+  let buf = "", err = null;
+  if (LANG === "py"){
+    py.setStdout({ batched: s => { buf += s + "\n"; } });
+    py.setStderr({ batched: s => { buf += s + "\n"; } });
+    try { await py.runPythonAsync(src); } catch (e) { err = String(e); }
+  } else {
+    /* ★★Ruby：初回だけ29MBを取りに行く（★その間ずっと待たせない）*/
+    try { buf = await ruby実行(src); 状態を出す(); }
+    catch (e) { err = String(e); }
   }
   const dt = (performance.now() - t0) / 1000;
   out.textContent = "";
