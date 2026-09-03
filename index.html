@@ -56,6 +56,14 @@
   button.go:hover{background:#9b45e8}
   button:disabled{opacity:.45;cursor:not-allowed}
 
+  /* ── ★みんなで同じ画面（2026-09-03）── */
+  .peers{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--dim)}
+  .peer{padding:2px 8px;border-radius:99px;background:#1b2030;border:1px solid var(--line)}
+  .peer.me{background:#2a1b3d;border-color:#6d1fb8;color:#c9a7ff}
+  .link{font:11px/1 var(--mono)}
+  .link.on{color:var(--ok)}
+  .link.off{color:var(--dim)}
+
   /* ── ★言語タブ（Python / Ruby）2026-09-03 ── */
   .tabs{display:flex;gap:0;margin-right:4px}
   .tabs button{border-radius:0;border-right:0;padding:5px 14px;font-size:12px}
@@ -85,6 +93,8 @@
 <header>
   <div class="logo">꒰ঌ₊⊹ <b>暁月ラボ</b> ライブコーディング ₊⊹໒꒱</div>
   <div class="status load" id="st">Python を読み込み中…</div>
+  <div class="peers" id="peers"></div>
+  <span class="link off" id="link">ひとりで</span>
   <div class="who" id="who"></div>
 </header>
 
@@ -410,17 +420,138 @@ document.addEventListener("keydown", e => {
   if ((e.ctrlKey || e.metaKey) && e.key === "Enter") { e.preventDefault(); run(); }
 });
 
-/* ★Discord Activity として開かれた時は、誰が見ているかを出す
-   ★普通のブラウザで開いた時は何もしない（★両方で動く） */
+/* ═══════════ ★みんなで同じ画面（2026-09-03）═══════════
+   ★Hikârư：「1個の画面をみんなで操作」「ぞんばさんのもおれがみれる、もうひとりもいるけど」
+
+   ★★Discord公式にこう書いてある（★憶測ではない）：
+     「any info ... must be shared via your application's server」
+     「The instanceId should be used as a key to save and load the shared data」
+   ★★★＝SDKだけでは参加者どうしにデータを配れない。
+     だから自前のサーバー（_server/sync.py）へ WebSocket で繋ぐ。
+
+   ★繋ぎ先
+     Discordの中 → /sync/ws （★URLマッピングで転送。★同一オリジン＝CSPに当たらない）
+     ブラウザ     → sync.json に書いたURL（★Discordを開かずに試せる）
+*/
+let 糸 = null, 自分 = "", 受信中 = false;
+const linkEl = $("#link"), peersEl = $("#peers");
+
+function 顔ぶれを出す(names){
+  peersEl.textContent = "";
+  (names || []).forEach(n => {
+    const d = document.createElement("span");
+    d.className = "peer" + (n === 自分 ? " me" : "");
+    d.textContent = n;
+    peersEl.appendChild(d);
+  });
+}
+
+function 送る(o){
+  if (糸 && 糸.readyState === 1) 糸.send(JSON.stringify(o));
+}
+
+function タブを押す(lang){
+  const b = document.querySelector('#tabs button[data-lang="' + lang + '"]');
+  if (b) b.click();
+}
+
+function 同期をつなぐ(base, room, name){
+  自分 = name;
+  const u = base + "/ws?room=" + encodeURIComponent(room)
+                 + "&name=" + encodeURIComponent(name);
+  linkEl.textContent = "つないでいます…";
+  linkEl.className = "link off";
+  糸 = new WebSocket(u);
+
+  糸.onopen  = () => { linkEl.textContent = "みんなと同じ画面"; linkEl.className = "link on"; };
+  糸.onclose = () => { linkEl.textContent = "ひとりで"; linkEl.className = "link off";
+                       peersEl.textContent = ""; 糸 = null; };
+  糸.onerror = () => { linkEl.textContent = "つながりませんでした"; };
+
+  糸.onmessage = ev => {
+    let d;
+    try { d = JSON.parse(ev.data); } catch (e) { return; }
+    受信中 = true;                       /* ★受け取った変更を★送り返さない */
+    try {
+      if (d.t === "init"){
+        顔ぶれを出す(d.names);
+        const S = d.state || {};
+        if (S.lang && S.lang !== LANG) タブを押す(S.lang);
+        if (S.code != null) $("#code").value = S.code;
+        if (S.out) { out.textContent = S.out; meta.textContent = S.meta || ""; }
+      }
+      else if (d.t === "who") 顔ぶれを出す(d.names);
+      else if (d.t === "code"){
+        if (d.lang && d.lang !== LANG) タブを押す(d.lang);
+        $("#code").value = d.code;
+      }
+      else if (d.t === "lang") タブを押す(d.lang);
+      else if (d.t === "run") run();      /* ★誰かが押したら全員の画面で走る */
+      else if (d.t === "out"){
+        out.textContent = d.out;
+        meta.textContent = (d.meta || "") + "（" + d.by + "）";
+      }
+    } finally { 受信中 = false; }
+  };
+}
+
+/* ★書いたら送る（★打つたびに送らず、300ms止まってから送る） */
+let 打鍵 = null;
+$("#code").addEventListener("input", () => {
+  if (受信中) return;
+  clearTimeout(打鍵);
+  打鍵 = setTimeout(() => 送る({ t: "code", code: $("#code").value, lang: LANG }), 300);
+});
+
+/* ★お題ボタン・言語タブも配る */
+nb.addEventListener("click", () => {
+  if (!受信中) setTimeout(() => 送る({ t: "code", code: $("#code").value, lang: LANG }), 0);
+});
+$("#tabs").addEventListener("click", () => {
+  if (!受信中) setTimeout(() => 送る({ t: "lang", lang: LANG }), 0);
+});
+
+/* ★実行が終わったら出力を配る（★run() を包む） */
+const _run元 = run;
+run = async function(){
+  await _run元();
+  if (!受信中) 送る({ t: "out", out: out.textContent, meta: meta.textContent });
+};
+$("#run").onclick = () => { if (!受信中) 送る({ t: "run" }); run(); };
+
+/* ═══ ★立ち上がり ═══ */
 (async () => {
-  if (!/discordsays\.com|\/\.proxy\//.test(location.href) && !location.search.includes("frame_id")) return;
+  const Activityの中 = /discordsays\.com|\/\.proxy\//.test(location.href)
+                    || location.search.includes("frame_id");
+
+  if (Activityの中){
+    try {
+      const m = await import("https://cdn.jsdelivr.net/npm/@discord/embedded-app-sdk@1.9.0/+esm");
+      const sdk = new m.DiscordSDK(
+        new URLSearchParams(location.search).get("client_id") || "");
+      await sdk.ready();
+      $("#who").textContent = "Discord Activity";
+      /* ★★instanceId が★部屋の鍵。★同じVCの人だけ同じ値になる */
+      const room = sdk.instanceId || "solo";
+      const name = "だれか" + String(Math.random()).slice(2, 5);
+      同期をつなぐ((location.protocol === "https:" ? "wss://" : "ws://")
+                 + location.host + "/sync", room, name);
+    } catch (e) { linkEl.textContent = "ひとりで"; }
+    return;
+  }
+
+  /* ★普通のブラウザ：sync.json があればそこへ繋ぐ（★Discordを開かずに試せる） */
   try {
-    const m = await import("https://cdn.jsdelivr.net/npm/@discord/embedded-app-sdk@1.9.0/+esm");
-    const sdk = new m.DiscordSDK(new URLSearchParams(location.search).get("client_id") || "");
-    await sdk.ready();
-    $("#who").textContent = "Discord Activity";
-  } catch (e) { /* ★失敗しても本体は動く */ }
+    const j = await (await fetch("./sync.json", { cache: "no-store" })).json();
+    if (j && j.url){
+      const q = new URLSearchParams(location.search);
+      const room = q.get("room") || "labo";
+      const name = q.get("name") || ("だれか" + String(Math.random()).slice(2, 5));
+      同期をつなぐ(j.url.replace(/^http/, "ws").replace(/\/$/, ""), room, name);
+    }
+  } catch (e) { /* ★sync.json が無ければ ひとりで */ }
 })();
+
 </script>
 </body>
 </html>
