@@ -31,6 +31,9 @@ header{padding:14px 18px;border-bottom:1px solid var(--line);
        position:sticky;top:0;background:var(--bg);z-index:5}
 h1{margin:0;font-size:17px;letter-spacing:.04em}
 .sub{color:var(--dim);font:11px/1 var(--mono)}
+.back{margin-left:auto;color:var(--dim);text-decoration:none;font-size:12px;
+      border:1px solid var(--line);border-radius:7px;padding:5px 12px;white-space:nowrap}
+.back:hover{color:var(--ink);border-color:var(--accent)}
 main{padding:16px 18px 60px;max-width:1180px;margin:0 auto}
 h2{font-size:13px;color:var(--dim);letter-spacing:.12em;margin:26px 0 10px;
    font-weight:600;text-transform:uppercase}
@@ -94,6 +97,8 @@ code{font:11.5px var(--mono);background:#0a0c10;padding:1px 6px;border-radius:5p
 <header>
   <h1>🍳 メシコレ</h1>
   <span class="sub" id="ver">読み込み中…</span>
+  <!-- ★Activityの中で戻れるように（★/ ＝ライブコーディング） -->
+  <a class="back" href="../">← ラボ</a>
 </header>
 
 <main id="app"><p class="sub">inventory.json を読んでいます…</p></main>
