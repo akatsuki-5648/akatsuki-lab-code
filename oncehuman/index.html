@@ -35,6 +35,16 @@ h1{margin:0;font-size:17px;letter-spacing:.04em}
       border:1px solid var(--line);border-radius:7px;padding:5px 12px;white-space:nowrap}
 .back:hover{color:var(--ink);border-color:var(--accent)}
 main{padding:16px 18px 60px;max-width:1180px;margin:0 auto}
+
+/* ── ★共有の説明（★初めて見る人向け。★内輪の言葉を使わない）── */
+.intro{max-width:1180px;margin:16px auto 0;padding:0 18px}
+.intro .box{background:var(--panel);border:1px solid var(--line);
+            border-left:3px solid var(--accent);border-radius:10px;padding:13px 15px}
+.intro h3{margin:0 0 6px;font-size:13.5px}
+.intro p{margin:0;font-size:12.5px;color:#c3c9d6;line-height:1.85}
+.intro ul{margin:9px 0 0;padding-left:18px;font-size:12px;color:var(--dim);line-height:1.95}
+.intro b{color:var(--ink)}
+.intro .aka{color:var(--warn)}
 h2{font-size:13px;color:var(--dim);letter-spacing:.12em;margin:26px 0 10px;
    font-weight:600;text-transform:uppercase}
 h2:first-child{margin-top:4px}
@@ -100,6 +110,19 @@ code{font:11.5px var(--mono);background:#0a0c10;padding:1px 6px;border-radius:5p
   <!-- ★Activityの中で戻れるように（★/ ＝ライブコーディング） -->
   <a class="back" href="../">← ラボ</a>
 </header>
+
+<section class="intro"><div class="box">
+  <h3>🍳 メシコレって何？</h3>
+  <p>Once Human で作り置きしている<b>料理の在庫</b>です。
+     <b>このActivityを開いた人は、全員おなじものが見えます。</b>
+     数値は実機のツールチップから読んだ実測値で、更新は AI（レオ）がスクショを見て入れています。</p>
+  <ul>
+    <li>食べ物と飲み物は<b>同時に1つずつ</b>持てます → 下の「今すぐ組める」がその全通り</li>
+    <li><b class="aka">赤い数字</b>＝のこり10個以下（そろそろ作る合図）</li>
+    <li>「枠の全体像」の<b>うすいやつ</b>＝まだ作っていない候補</li>
+    <li>ほしい物や減った物があったら Hikârư に言ってください。作り置きが増えます</li>
+  </ul>
+</div></section>
 
 <main id="app"><p class="sub">inventory.json を読んでいます…</p></main>
 
@@ -190,10 +213,11 @@ function 描く(d) {
   }
 
   h += '<div class="foot">' +
+       "<b style='color:#e6e9f0'>更新のしかた（Hikârư用）</b><br>" +
        "正本＝ <code>22_Game\\oncehuman\\_DB\\oncehuman.db</code>（Vault内）<br>" +
-       "更新＝ <code>python _DB\\inv.py set 冷蔵庫 &lt;名前&gt; &lt;個数&gt;</code> → " +
-       "<code>python _DB\\export_json.py --icons</code><br>" +
-       "数値は実機のツールチップから読んだもの。出どころは在庫ごとに記録している。" +
+       "スクショをレオに渡す → <code>python _DB\\inv.py set 冷蔵庫 &lt;名前&gt; &lt;個数&gt;</code> → " +
+       "<code>python _DB\\export_json.py --icons</code> → push<br>" +
+       "出どころ（手入力／スクショ／推定）は在庫1件ごとに残してある。" +
        "</div>";
 
   $("#app").innerHTML = h;

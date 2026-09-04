@@ -21,10 +21,18 @@
        font:14px/1.6 system-ui,-apple-system,"Segoe UI","Noto Sans JP",sans-serif}
 
   /* ── 上のバー ── */
-  header{display:flex;align-items:center;gap:12px;padding:10px 14px;
+  header{display:flex;align-items:center;gap:12px;padding:10px 14px;flex-wrap:wrap;
          background:linear-gradient(90deg,#1a0f2e,#12151d);
          border-bottom:1px solid var(--line);flex:0 0 auto}
-  .logo{font-weight:700;letter-spacing:.02em}
+  /* ★狭い枠（Activityは通話画面の中で開くので細い）でも縦に潰れないように。
+     ★実測 2026-09-04：幅424pxで header の高さが267pxになり、ロゴが1文字ずつ縦に折れていた。
+     ★広い時の見た目は変わらない（★入りきる限り1行のまま） */
+  .logo{font-weight:700;letter-spacing:.02em;white-space:nowrap}
+  /* ★メシコレ（Once Human 在庫）への行き道 ── ★2026-09-04 追加。
+     ★相対リンク oncehuman/ ＝ 同じ Activity の中の別ページ（★同一オリジン） */
+  .meshi{color:var(--dim);text-decoration:none;font:12px/1 var(--sans);
+         border:1px solid var(--line);border-radius:7px;padding:5px 11px;white-space:nowrap}
+  .meshi:hover{color:var(--ink);border-color:var(--accent)}
   .logo b{color:#c9a7ff}
   .status{font:12px/1 var(--mono);padding:4px 9px;border-radius:99px;
           border:1px solid var(--line);color:var(--dim);white-space:nowrap}
@@ -95,6 +103,7 @@
   <div class="status load" id="st">Python を読み込み中…</div>
   <div class="peers" id="peers"></div>
   <span class="link off" id="link">ひとりで</span>
+  <a class="meshi" href="oncehuman/" title="Once Human の料理の在庫（みんな見られます）">🍳 メシコレ</a>
   <div class="who" id="who"></div>
 </header>
 
