@@ -1,0 +1,200 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>メシコレ ── Once Human 在庫</title>
+<!--
+  ★Hikârư（2026-09-03）
+    「俺がメシコレをこれだけ作ってるよーっていうのを Discordのアクティビティーを
+      HPしきにしてデータベースくんで、在庫管理と仲間に教える」
+    「レオも読み書きして ダッシュボードから必要なことができて、
+      更新はレオに、スクショ見てもらって更新が最速」
+
+  ★外部を1つも読まない（★DiscordのActivityはCSPで外部CDNを弾く）
+    フォント＝端末のもの ／ アイコン＝icons/ に同梱 ／ データ＝inventory.json（同一オリジン）
+
+  ★中身は 22_Game\oncehuman\_DB\oncehuman.db が正本。
+    ★更新は  python _DB\inv.py set 冷蔵庫 <名前> <個数>
+    ★書出は  python _DB\export_json.py --icons
+-->
+<style>
+:root{
+  --bg:#0b0d12; --panel:#12151d; --line:#242a38; --ink:#e6e9f0; --dim:#8b93a7;
+  --accent:#8b5cf6; --food:#f0b232; --drink:#3ba55d; --use:#5865f2; --keep:#949cf7;
+  --warn:#ed4245;
+  --mono:ui-monospace,"Consolas","Courier New",monospace;
+  --sans:system-ui,"Segoe UI","Yu Gothic UI","Meiryo",sans-serif;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.7 var(--sans)}
+header{padding:14px 18px;border-bottom:1px solid var(--line);
+       display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;
+       position:sticky;top:0;background:var(--bg);z-index:5}
+h1{margin:0;font-size:17px;letter-spacing:.04em}
+.sub{color:var(--dim);font:11px/1 var(--mono)}
+main{padding:16px 18px 60px;max-width:1180px;margin:0 auto}
+h2{font-size:13px;color:var(--dim);letter-spacing:.12em;margin:26px 0 10px;
+   font-weight:600;text-transform:uppercase}
+h2:first-child{margin-top:4px}
+
+/* ── 数字の帯 ── */
+.nums{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:4px}
+.num{background:var(--panel);border:1px solid var(--line);border-radius:9px;
+     padding:9px 14px;min-width:92px}
+.num b{display:block;font:20px/1.3 var(--mono);color:var(--ink)}
+.num span{font-size:11px;color:var(--dim)}
+
+/* ── 在庫カード ── */
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(268px,1fr));gap:10px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:11px;
+      padding:11px 12px;display:flex;gap:11px;align-items:flex-start;position:relative}
+.card img{width:46px;height:46px;flex:0 0 46px;border-radius:8px;
+          background:#0a0c10;object-fit:contain}
+.card .noimg{width:46px;height:46px;flex:0 0 46px;border-radius:8px;background:#0a0c10;
+             display:grid;place-items:center;color:var(--dim);font-size:19px}
+.card .b{min-width:0;flex:1}
+.nm{font-weight:600;font-size:13.5px;line-height:1.4}
+.qty{font:17px/1.2 var(--mono);margin-left:auto;padding-left:8px}
+.row1{display:flex;align-items:baseline;gap:6px}
+.bf{font-size:12px;margin-top:3px}
+.ef{font-size:11.5px;color:var(--dim);margin-top:2px}
+.tag{display:inline-block;font-size:10px;padding:1px 7px;border-radius:99px;
+     border:1px solid;vertical-align:2px}
+.t食べ物{color:var(--food);border-color:var(--food)}
+.t飲み物{color:var(--drink);border-color:var(--drink)}
+.t使用{color:var(--use);border-color:var(--use)}
+.t保存{color:var(--keep);border-color:var(--keep)}
+.low{color:var(--warn)}
+.card.low{border-color:#5a2326}
+
+/* ── 組み合わせ ── */
+table{border-collapse:collapse;width:100%;font-size:12.5px}
+th,td{border-bottom:1px solid var(--line);padding:7px 9px;text-align:left;vertical-align:top}
+th{color:var(--dim);font-size:11px;letter-spacing:.06em;font-weight:600;
+   position:sticky;top:52px;background:var(--bg)}
+td.n{font:13px/1.4 var(--mono);white-space:nowrap}
+tr:hover td{background:#161a24}
+
+/* ── 枠の全体像 ── */
+.slots{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:6px}
+.slot{background:var(--panel);border:1px solid var(--line);border-radius:8px;
+      padding:7px 10px;font-size:12px;display:flex;gap:8px;align-items:center}
+.slot.no{opacity:.42}
+.dot{width:7px;height:7px;border-radius:99px;flex:0 0 7px;background:var(--dim)}
+.slot.yes .dot{background:var(--drink)}
+.slot .nm2{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+.foot{margin-top:34px;padding-top:14px;border-top:1px solid var(--line);
+      color:var(--dim);font-size:11.5px;line-height:1.9}
+code{font:11.5px var(--mono);background:#0a0c10;padding:1px 6px;border-radius:5px;
+     border:1px solid var(--line)}
+.err{background:#2a1416;border:1px solid #5a2326;color:#ffb3b6;
+     padding:12px 14px;border-radius:9px;font-size:13px}
+</style>
+
+<header>
+  <h1>🍳 メシコレ</h1>
+  <span class="sub" id="ver">読み込み中…</span>
+</header>
+
+<main id="app"><p class="sub">inventory.json を読んでいます…</p></main>
+
+<script>
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"]/g, m =>
+  ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;" }[m]));
+
+/* ★在庫が少ない＝目立たせる（Hikârưが「作らないと」に気づける形） */
+const 少ない = q => q <= 10;
+
+/* ★DBの duration は「秒」（実測：600 / 1800 / 3600 と空）。
+   ★生の数字は人が読めないので、分・時間に直してから出す。 */
+const 秒を読める形に = s => {
+  const n = parseInt(s, 10);
+  if (!n) return null;
+  if (n % 3600 === 0) return (n / 3600) + "時間";
+  if (n % 60 === 0)   return (n / 60) + "分";
+  return n + "秒";
+};
+
+fetch("inventory.json?" + Date.now())
+  .then(r => { if (!r.ok) throw new Error("HTTP " + r.status); return r.json(); })
+  .then(描く)
+  .catch(e => {
+    $("#app").innerHTML =
+      '<div class="err">inventory.json を読めませんでした（' + esc(e.message) + '）<br>' +
+      '<code>python _DB\\export_json.py --icons</code> を実行して push してください。</div>';
+    $("#ver").textContent = "データなし";
+  });
+
+function 描く(d) {
+  $("#ver").textContent = d.版 + " 現在";
+  const n = d.数;
+  let h = "";
+
+  h += '<div class="nums">' +
+       num(n.在庫品目, "品目") + num(n.在庫総数, "個") +
+       num(n.食べ物, "食べ物枠") + num(n.飲み物, "飲み物枠") +
+       num(n.組み合わせ, "今すぐ組める") +
+       '</div>';
+
+  /* ── 在庫 ── */
+  h += "<h2>在庫</h2><div class='grid'>";
+  for (const x of d.在庫) {
+    const img = x.icon
+      ? '<img src="' + esc(x.icon) + '" alt="' + esc(x.名前) + '" loading="lazy">'
+      : '<div class="noimg">🍽</div>';
+    h += '<div class="card' + (少ない(x.個数) ? " low" : "") + '">' + img +
+         '<div class="b">' +
+           '<div class="row1"><span class="nm">' + esc(x.名前) + '</span>' +
+             '<span class="qty' + (少ない(x.個数) ? " low" : "") + '">' + x.個数 + '</span></div>' +
+           (x.枠 ? '<div class="bf"><span class="tag t' + esc(x.枠) + '">' + esc(x.枠) + '</span> ' +
+                   esc(x.効果名 || "") + '</div>' : "") +
+           (x.効果 ? '<div class="ef">' + esc(x.効果) + '</div>' : "") +
+           (秒を読める形に(x.持続) ? '<div class="ef">⏱ ' + esc(秒を読める形に(x.持続)) + '</div>' : "") +
+         '</div></div>';
+  }
+  h += "</div>";
+
+  /* ── 今すぐ組める（食べ物×飲み物） ── */
+  h += "<h2>今すぐ組める組み合わせ（食べ物1 × 飲み物1）</h2>";
+  if (d.組み合わせ.length) {
+    h += "<table><thead><tr><th>食べ物</th><th>飲み物</th><th>持てる回数</th></tr></thead><tbody>";
+    for (const c of [...d.組み合わせ].sort((a, b) => b.最小個数 - a.最小個数)) {
+      h += "<tr><td><b>" + esc(c.食べ物) + "</b><div class='ef'>" + esc(c.食べ物効果) + "</div></td>" +
+           "<td><b>" + esc(c.飲み物) + "</b><div class='ef'>" + esc(c.飲み物効果) + "</div></td>" +
+           "<td class='n'>" + c.最小個数 + "</td></tr>";
+    }
+    h += "</tbody></table>";
+  } else {
+    h += "<p class='sub'>食べ物か飲み物の在庫がありません。</p>";
+  }
+
+  /* ── 枠の全体像（在庫ゼロ＝作る候補） ── */
+  h += "<h2>枠の全体像（●＝在庫あり ／ 薄い＝作る候補）</h2>";
+  const 枠順 = ["食べ物", "飲み物", "使用", "保存"];
+  for (const k of 枠順) {
+    const g = d.枠.filter(s => s.枠 === k);
+    if (!g.length) continue;
+    h += '<div class="sub" style="margin:12px 0 5px">' + esc(k) +
+         "（" + g.filter(s => s.ある).length + " / " + g.length + "）</div><div class='slots'>";
+    for (const s of g) {
+      h += '<div class="slot ' + (s.ある ? "yes" : "no") + '"><span class="dot"></span>' +
+           '<span class="nm2" title="' + esc(s.効果名 || "") + '">' + esc(s.名前) + "</span></div>";
+    }
+    h += "</div>";
+  }
+
+  h += '<div class="foot">' +
+       "正本＝ <code>22_Game\\oncehuman\\_DB\\oncehuman.db</code>（Vault内）<br>" +
+       "更新＝ <code>python _DB\\inv.py set 冷蔵庫 &lt;名前&gt; &lt;個数&gt;</code> → " +
+       "<code>python _DB\\export_json.py --icons</code><br>" +
+       "数値は実機のツールチップから読んだもの。出どころは在庫ごとに記録している。" +
+       "</div>";
+
+  $("#app").innerHTML = h;
+}
+
+function num(v, label) {
+  return '<div class="num"><b>' + v + "</b><span>" + label + "</span></div>";
+}
+</script>
