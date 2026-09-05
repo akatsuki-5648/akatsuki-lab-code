@@ -314,6 +314,8 @@ code{font:11.5px var(--mono);background:rgba(0,0,0,.42);padding:2px 7px;border-r
 .card[data-rea="青"]{border-left:3px solid #5d6e79 !important}
 .card[data-rea="緑"]{border-left:3px solid #506255 !important}
 .card[data-rea="灰"]{border-left:3px solid #2a2f3a !important}
+
+button.back{cursor:pointer;font:inherit}
 </style>
 
 <header class="hero">
@@ -324,6 +326,7 @@ code{font:11.5px var(--mono);background:rgba(0,0,0,.42);padding:2px 7px;border-r
       <p>Once Human ／ 作り置きの実測台帳</p>
     </div>
     <!-- ★Activityの中で戻れるように（★/ ＝ライブコーディング） -->
+    <button class="back" onclick="location.href=&quot;?t=&quot;+Date.now()" title="★Discordが古い画面を持っている時これを押す">🔄 最新に</button>
     <a class="back" href="../">← ラボ</a>
   </div>
   <div class="rail" id="rail"><span class="chip">読み込み中…</span></div>
