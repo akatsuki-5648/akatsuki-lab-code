@@ -133,7 +133,43 @@ window.__メシコレ = function (鯖) {
     return true;
   } catch (e) { return false; }
 };
-/* ★① クエリに guild_id が来ていれば、その場で出す */
+/* ★★① ロゴを3回クリック → メシコレへ（★guild_idに依存しない・★確実に動く道）
+   ★Hikârư「でてねーよサポートからのコーダーしか！！！！！」
+   ★判定が効かない時のための逃げ道。★見た目は普通のロゴ＝ラボの人には分からない */
+(function () {
+  try {
+    var 回 = 0, 前回 = 0;
+    document.addEventListener("click", function (e) {
+      var l = e.target.closest && e.target.closest(".logo");
+      if (!l) return;
+      var 今 = Date.now();
+      回 = (今 - 前回 < 1200) ? 回 + 1 : 1;
+      前回 = 今;
+      if (回 >= 3) { 回 = 0; location.href = "oncehuman/?t=" + Date.now(); }
+    });
+  } catch (e) {}
+})();
+
+/* ★★② 何が取れているかを画面に出す（★飯とは無関係の数字＝晒しにならない）
+   ★これが見えれば「なぜ判定が効かないか」が1回で分かる */
+(function () {
+  try {
+    var 出す = function (v) {
+      var w = document.getElementById("who");
+      if (!w) return;
+      var s = document.getElementById("__診断") || document.createElement("span");
+      s.id = "__診断";
+      s.style.cssText = "font:10px/1 var(--mono);color:var(--dim);opacity:.5;margin-left:6px";
+      s.textContent = v;
+      if (!s.parentNode) w.parentNode.insertBefore(s, w);
+    };
+    var q = new URLSearchParams(location.search);
+    出す("g:" + (q.get("guild_id") || "-") + " f:" + (q.get("frame_id") ? "y" : "-"));
+    window.__診断を更新 = 出す;
+  } catch (e) {}
+})();
+
+/* ★③ クエリに guild_id が来ていれば、その場で出す */
 (function () {
   try {
     var q = new URLSearchParams(location.search).get("guild_id");
@@ -633,6 +669,8 @@ $("#run").onclick = () => { if (!受信中) 送る({ t: "run" }); run(); };
       $("#who").textContent = "Discord Activity";
       /* ★★2026-09-05：SDK からも鯖を見る（★クエリに guild_id が来ない場合の本命） */
       try { window.__メシコレ && window.__メシコレ(sdk.guildId); } catch (e) {}
+      /* ★SDKから取れた鯖IDを画面に出す（★これで判定が効かない理由が分かる） */
+      try { window.__診断を更新 && window.__診断を更新("sdk:" + (sdk.guildId || "-")); } catch (e) {}
       /* ★★instanceId が★部屋の鍵。★同じVCの人だけ同じ値になる */
       const room = sdk.instanceId || "solo";
       const name = "だれか" + String(Math.random()).slice(2, 5);
