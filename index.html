@@ -1,11 +1,7 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head><meta charset="utf-8">
-<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-<meta http-equiv="Pragma" content="no-cache">
-<meta http-equiv="Expires" content="0">
-<!-- ★2026-09-05：★Activityで古い画面が出ていた。★データは毎回?時刻を付けていたが
-     ★HTML自体のキャッシュを切っていなかった（★Discordが間で持っていた） -->
+
 
 <title>暁月ラボ ライブコーディング</title>
 <!--
@@ -46,11 +42,6 @@
   footer.notice a{color:var(--accent);text-decoration:none;white-space:nowrap;margin-left:auto}
   footer.notice a:hover{text-decoration:underline}
   @media (max-width:620px){ footer.notice a{margin-left:0} }
-  /* ★2026-09-05：メシコレの入口 ── ★sssh鯖でだけ出す（下のJSが差し込む）
-     ★Hikârư「ラボに飯のアクティなんかさらしたらたたきこわすぞ」 */
-  .meshi{color:var(--dim);text-decoration:none;font:12px/1 var(--sans);
-         border:1px solid var(--line);border-radius:7px;padding:5px 11px;white-space:nowrap}
-  .meshi:hover{color:var(--ink);border-color:var(--accent)}
   .logo b{color:#c9a7ff}
   .status{font:12px/1 var(--mono);padding:4px 9px;border-radius:99px;
           border:1px solid var(--line);color:var(--dim);white-space:nowrap}
@@ -109,105 +100,7 @@
 
   @media (max-width:760px){ main{grid-template-columns:1fr;grid-template-rows:1fr 1fr} }
 </style>
-<script>
-/* ★★2026-09-05：★メシコレの入口は【sssh鯖でだけ】出す
-   ★Hikârư「ラボに飯のアクティなんかさらしたらたたきこわすぞ」「SSSHだろが」
-   ★★判定は2経路 ── ①クエリの guild_id ②SDKの sdk.guildId（ready後）
-     ★調べたら frame_id / instance_id は必ず来るが★guild_id は保証されていない
-     ★だから SDK 側でも見る（★下の立ち上がりから __メシコレ() が呼ばれる）
-   ★★HTMLには直書きしない＝ラボで開いた人はソースを見ても導線が無い */
-window.__メシコレ = function (鯖) {
-  try {
-    if (String(鯖) !== "531265301652963328") return false;   /* ★sssh鯖以外は何もしない */
-    var w = document.getElementById("who");
-    if (!w || document.querySelector(".meshi")) return true;  /* ★二重に出さない */
-    var a = document.createElement("a");
-    a.className = "meshi";
-    a.href = "oncehuman/";
-    a.title = "Once Human の料理の在庫";
-    a.textContent = "\uD83C\uDF73 メシコレ";
-    a.addEventListener("click", function () {
-      this.href = "oncehuman/?t=" + Date.now();               /* ★押した瞬間に最新へ */
-    });
-    w.parentNode.insertBefore(a, w);
-    return true;
-  } catch (e) { return false; }
-};
-/* ★★① ロゴを3回クリック → メシコレへ（★guild_idに依存しない・★確実に動く道）
-   ★Hikârư「でてねーよサポートからのコーダーしか！！！！！」
-   ★判定が効かない時のための逃げ道。★見た目は普通のロゴ＝ラボの人には分からない */
-(function () {
-  try {
-    var 回 = 0, 前回 = 0;
-    document.addEventListener("click", function (e) {
-      var l = e.target.closest && e.target.closest(".logo");
-      if (!l) return;
-      var 今 = Date.now();
-      回 = (今 - 前回 < 1200) ? 回 + 1 : 1;
-      前回 = 今;
-      if (回 >= 3) { 回 = 0; location.href = "oncehuman/?t=" + Date.now(); }
-    });
-  } catch (e) {}
-})();
 
-/* ★★② 何が取れているかを画面に出す（★飯とは無関係の数字＝晒しにならない）
-   ★これが見えれば「なぜ判定が効かないか」が1回で分かる */
-(function () {
-  try {
-    var 出す = function (v) {
-      var w = document.getElementById("who");
-      if (!w) return;
-      var s = document.getElementById("__診断") || document.createElement("span");
-      s.id = "__診断";
-      s.style.cssText = "font:10px/1 var(--mono);color:var(--dim);opacity:.5;margin-left:6px";
-      s.textContent = v;
-      if (!s.parentNode) w.parentNode.insertBefore(s, w);
-    };
-    var q = new URLSearchParams(location.search);
-    出す("g:" + (q.get("guild_id") || "-") + " f:" + (q.get("frame_id") ? "y" : "-"));
-    window.__診断を更新 = 出す;
-  } catch (e) {}
-})();
-
-/* ★③ クエリに guild_id が来ていれば、その場で出す */
-(function () {
-  try {
-    var q = new URLSearchParams(location.search).get("guild_id");
-    if (q) {
-      if (document.readyState === "loading")
-        document.addEventListener("DOMContentLoaded", function () { window.__メシコレ(q); });
-      else window.__メシコレ(q);
-    }
-  } catch (e) {}
-})();
-</script>
-
-<script>
-/* ★★2026-09-05：★古い画面を掴んでいたら【自分で】最新へ飛ぶ
-   ★Discordクライアントのキャッシュはこちらから消せない。★だから画面側で気づいて開き直す
-   ★★?t= が付いている時は走らない＝無限ループしない
-   ★失敗しても何も起きない（★画面は普通に出る） */
-window.__版 = "20260905_223124";
-(function () {
-  try {
-    if (location.search.indexOf("t=") >= 0) return;          /* ★もう飛んだ後 */
-    /* 🚨★★2026-09-05：★Activityの中では絶対に走らせない
-       ★location.replace(pathname + "?t=") は ★frame_id / instance_id を全部捨てる
-       ★★SDKが初期化できず【画面が真っ黒になった】（★Hikârưの画面で実際に確認した） */
-    if (location.search.indexOf("frame_id") >= 0) return;
-    if (/discordsays\.com|\/\.proxy\//.test(location.href)) return;
-    fetch(location.pathname + "?probe=" + Date.now(), { cache: "no-store" })
-      .then(function (r) { return r.text(); })
-      .then(function (h) {
-        var m = h.match(/window\.__版 = "([0-9_]+)"/);
-        if (m && m[1] !== window.__版) {
-          location.replace(location.pathname + "?t=" + Date.now());   /* ★履歴を汚さない */
-        }
-      })
-      .catch(function () {});
-  } catch (e) {}
-})();
-</script>
 </head>
 <body>
 
@@ -672,10 +565,6 @@ $("#run").onclick = () => { if (!受信中) 送る({ t: "run" }); run(); };
         new URLSearchParams(location.search).get("client_id") || "");
       await sdk.ready();
       $("#who").textContent = "Discord Activity";
-      /* ★★2026-09-05：SDK からも鯖を見る（★クエリに guild_id が来ない場合の本命） */
-      try { window.__メシコレ && window.__メシコレ(sdk.guildId); } catch (e) {}
-      /* ★SDKから取れた鯖IDを画面に出す（★これで判定が効かない理由が分かる） */
-      try { window.__診断を更新 && window.__診断を更新("sdk:" + (sdk.guildId || "-")); } catch (e) {}
       /* ★★instanceId が★部屋の鍵。★同じVCの人だけ同じ値になる */
       const room = sdk.instanceId || "solo";
       const name = "だれか" + String(Math.random()).slice(2, 5);

@@ -12,7 +12,7 @@ _worker/node_modules/
 #   ★もう 2箇所にある ── ☆D1(akatsuki-lab-sync) ☆ローカル配信(127.0.0.1:8443)
 #   ★更新は python _DB/export_json.py --push  ★pushは要らない
 #   ★Activityに残すのは【コーダー】だけ
-oncehuman/inventory.json
+oncehuman/
 
 # ★バックアップ（★Vault内に在る＝週２の二重バックアップに乗っている）
 *.bak_*
