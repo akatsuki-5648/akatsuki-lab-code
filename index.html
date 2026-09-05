@@ -28,6 +28,18 @@
      ★実測 2026-09-04：幅424pxで header の高さが267pxになり、ロゴが1文字ずつ縦に折れていた。
      ★広い時の見た目は変わらない（★入りきる限り1行のまま） */
   .logo{font-weight:700;letter-spacing:.02em;white-space:nowrap}
+  /* ★2026-09-05 追加：★同梱物のライセンスを【見える所】に出す
+     ★Hikârư「らいせんすみたいのあったよなそれか？みえるとこにかかなくていいんか」
+     ★NOTICE.md も pyodide/LICENSE も ruby/LICENSE も★前から同梱していたが、
+       ★画面には一度も出しておらず、★HTMLコメントの中にしか書いていなかった
+     ★★同梱＝配布。★配布物の受け手に見える形で示す */
+  footer.notice{display:flex;flex-wrap:wrap;align-items:center;gap:5px 14px;
+    padding:7px 14px;border-top:1px solid var(--line);background:#0d1017;
+    font:11px/1.6 var(--sans);color:var(--dim)}
+  footer.notice b{color:var(--ink);font-weight:600}
+  footer.notice a{color:var(--accent);text-decoration:none;white-space:nowrap;margin-left:auto}
+  footer.notice a:hover{text-decoration:underline}
+  @media (max-width:620px){ footer.notice a{margin-left:0} }
   .logo b{color:#c9a7ff}
   .status{font:12px/1 var(--mono);padding:4px 9px;border-radius:99px;
           border:1px solid var(--line);color:var(--dim);white-space:nowrap}
@@ -127,6 +139,15 @@
   </section>
 </main>
 
+<!-- ★★2026-09-05：★同梱しているものとライセンスを画面に出す
+     ★どれも【改変せず配布物をそのまま置いている】＝再配布の条件はこれで満たす
+     ★全文は NOTICE.md ／ pyodide/LICENSE ／ ruby/LICENSE に同梱 -->
+<footer class="notice">
+  <span>同梱：<b>Pyodide 0.26.4</b> MPL-2.0 ／ <b>Ruby 3.4 (ruby.wasm)</b> MIT ／
+        <b>CPython 標準ライブラリ</b> PSF ── いずれも改変なし</span>
+  <a href="NOTICE.md" title="同梱しているものとライセンスの全文">使っているもの と ライセンス →</a>
+</footer>
+
 <!-- ★★2026-09-03：★CDNをやめて★同梱に切り替えた
      ★理由：Discord Activity のCSPで cdn.jsdelivr.net が弾かれ、
        ★★実行ボタンが押せない状態になった（実測）。
@@ -142,13 +163,17 @@ const $ = s => document.querySelector(s);
    ★HTMLが来ていれば上の黄色い帯が出る。★JSが動けばここで書き換わる。
    ★★Pyodide(CDN)がCSPで弾かれたら、★その旨を画面に出す（★無言で白くしない）*/
 const diag = document.getElementById("diag");
-diag.textContent = "★JSは動いています。★Pyodide(CDN)を待っています…";
+/* ★2026-09-05 直した ── ★「CDN」は嘘だった（★13.2MBを同梱していて外から取っていない）。
+   ★★しかも読み込みに成功しても消えず、★「待っています」が出たまま残っていた */
+diag.textContent = "★JSは動いています。★同梱のPyodideを読み込み中…";
 window.addEventListener("error", e => {
+  diag.dataset.err = "1";
   diag.style.background = "#2a0e0e"; diag.style.color = "#ED4245";
   diag.textContent = "🚨 読み込みに失敗: " + (e.message || e.type)
     + " ／ " + (e.filename || "").slice(0, 90);
 }, true);
 if (typeof loadPyodide === "undefined") {
+  diag.dataset.err = "1";
   diag.style.background = "#2a0e0e"; diag.style.color = "#ED4245";
   diag.textContent = "🚨 Pyodide(同梱)が読めませんでした"
     + "＝★DiscordのCSPで弾かれています。★URLマッピングでCDNを通す必要があります。";
@@ -352,7 +377,10 @@ async function ruby実行(src){
 function 状態を出す(){
   if (LANG === "py"){
     if (py){ st.textContent = "Python " + PYVER + " 準備OK";
-             st.className = "status on"; $("#run").disabled = false; }
+             st.className = "status on"; $("#run").disabled = false;
+             /* ★2026-09-05：読めたら診断の帯を消す（★出しっぱなしだった）。
+                ★失敗した時は dataset.err が立っているので残る */
+             if (diag && !diag.dataset.err) diag.remove(); }
   } else {
     st.textContent = rb ? "Ruby 3.4 準備OK" : "Ruby は実行時に読み込みます(29MB)";
     st.className = rb ? "status on" : "status";
