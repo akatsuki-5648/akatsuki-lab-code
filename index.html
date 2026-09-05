@@ -191,6 +191,11 @@ window.__版 = "20260905_223124";
 (function () {
   try {
     if (location.search.indexOf("t=") >= 0) return;          /* ★もう飛んだ後 */
+    /* 🚨★★2026-09-05：★Activityの中では絶対に走らせない
+       ★location.replace(pathname + "?t=") は ★frame_id / instance_id を全部捨てる
+       ★★SDKが初期化できず【画面が真っ黒になった】（★Hikârưの画面で実際に確認した） */
+    if (location.search.indexOf("frame_id") >= 0) return;
+    if (/discordsays\.com|\/\.proxy\//.test(location.href)) return;
     fetch(location.pathname + "?probe=" + Date.now(), { cache: "no-store" })
       .then(function (r) { return r.text(); })
       .then(function (h) {
