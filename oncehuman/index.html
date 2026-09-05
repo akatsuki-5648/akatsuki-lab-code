@@ -230,16 +230,7 @@ h2 small{margin-left:auto;font-weight:500;font-size:11.5px;color:var(--dim2);let
 /* ★transform を外した（★カードが浮くたびに1枚ずつ合成レイヤーを作っていた）。
    ★transition も「色だけ」に絞る（★all だと位置や大きさまで毎回見に行く）。 */
 .card{position:relative;display:flex;gap:13px;align-items:flex-start;padding:13px;
-/* ★★2026-09-05：レア度の枠 ── ★色は今日71マスから【実測】した値をそのまま使う
-   ★金(176,146,99) 紫(100,78,127) 青(93,110,121) 緑(80,98,85)
-   ★灰はゲームでは枠を描かない → ★ここでは「枠が無い」ことが分かる薄い線にする
-   ★★推測の色は1つも作っていない（★分からないものは data-rea="" ＝線なし） */
-.card[data-rea]{border-left:3px solid transparent}
-.card[data-rea="金"]{border-left-color:#b09263}
-.card[data-rea="紫"]{border-left-color:#644e7f}
-.card[data-rea="青"]{border-left-color:#5d6e79}
-.card[data-rea="緑"]{border-left-color:#506255}
-.card[data-rea="灰"]{border-left-color:#2a2f3a}
+
       border-radius:var(--r);background:var(--panel);border:1px solid var(--line);
       transition:border-color .16s,background-color .16s}
 .card:hover{border-color:var(--line2);background:rgba(255,255,255,.062)}
@@ -307,6 +298,16 @@ code{font:11.5px var(--mono);background:rgba(0,0,0,.42);padding:2px 7px;border-r
   .dnum b{font-size:28px}
   main,.heroIn,.rail,.navIn,.intro{padding-left:14px;padding-right:14px}
 }
+
+/* ★★2026-09-05：レア度の枠 ── ★色は今日71マスから【実測】した値
+   金(176,146,99) 紫(100,78,127) 青(93,110,121) 緑(80,98,85) ／ 灰＝ゲームでは枠なし
+   ★★CSSの末尾に置く＋!important ── ★.low(在庫が少ない)と詳細度が同じで負けていた
+   ★.low の赤枠は上下右に残る。★左だけレア度の色にする＝両方見える */
+.card[data-rea="金"]{border-left:3px solid #b09263 !important}
+.card[data-rea="紫"]{border-left:3px solid #644e7f !important}
+.card[data-rea="青"]{border-left:3px solid #5d6e79 !important}
+.card[data-rea="緑"]{border-left:3px solid #506255 !important}
+.card[data-rea="灰"]{border-left:3px solid #2a2f3a !important}
 </style>
 
 <header class="hero">
