@@ -5,3 +5,14 @@ __pycache__/
 _server/_tunnel.log
 _worker/.wrangler/
 _worker/node_modules/
+
+# ★2026-09-05 ── ★★メシコレは丸ごとGitに置かない
+#   Hikârư「GITにGameの飯公開してそのままだとのいずだよｷｷｷ」
+#   Hikârư「めしはいらんなんかしょにもｷｷ」
+#   ★もう 2箇所にある ── ☆D1(akatsuki-lab-sync) ☆ローカル配信(127.0.0.1:8443)
+#   ★更新は python _DB/export_json.py --push  ★pushは要らない
+#   ★Activityに残すのは【コーダー】だけ
+oncehuman/
+
+# ★バックアップ（★Vault内に在る＝週２の二重バックアップに乗っている）
+*.bak_*

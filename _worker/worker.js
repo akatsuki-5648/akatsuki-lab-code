@@ -128,6 +128,88 @@ export default {
       return env.ROOM.get(id).fetch(req);
     }
 
+    /* ══════════════════════════════════════════════════
+       ★★メシコレ（Once Human 在庫）── 2026-09-05 追加
+         ★Hikârư「akatsuki-lab-syncそのままいれかえるんじゃないの？」
+           ＝★新しいWorkerは作らない。★ここに2本足すだけ。
+         ★Hikârư「悪意があってもそれでやられること限られるでしょ」
+           ＝★合言葉で守るのは「在庫の書き換え」まで。★アカウントの鍵は作らない。
+         ★上の Room / /health / /ws は 1文字も変えていない。
+       ══════════════════════════════════════════════════ */
+
+    // ★D1 がまだ無くても、上の同期は普通に動く（★足すまで劣化しない）
+    const 台帳あり = !!env.DB;
+
+    // ── 画面が読む所（★誰でも読める。★在庫は隠す物ではない）──
+    if (u.pathname === "/inventory") {
+      const h = { "content-type": "application/json; charset=utf-8",
+                  "Access-Control-Allow-Origin": "*",
+                  "Cache-Control": "no-store" };
+      if (!台帳あり) {
+        return new Response(JSON.stringify({ エラー: "D1 がまだ繋がっていません" }),
+                            { status: 503, headers: h });
+      }
+      // ★最新の1行を読むだけ＝★D1の読み取りは1行（★無料枠 500万行/日）
+      const row = await env.DB.prepare(
+        "SELECT json FROM snapshot ORDER BY id DESC LIMIT 1").first();
+      if (!row) {
+        return new Response(JSON.stringify({ エラー: "まだ1度も送られていません" }),
+                            { status: 404, headers: h });
+      }
+      return new Response(row.json, { headers: h });
+    }
+
+    // ── レオが更新を送る所（★合言葉が要る）──
+    if (u.pathname === "/push") {
+      if (req.method !== "POST") return new Response("POST で", { status: 405 });
+      // ★合言葉は Worker の中（暗号化された変数）。★PCには置かない
+      const 鍵 = req.headers.get("x-meshi-key") || "";
+      if (!env.PUSH_KEY || 鍵 !== env.PUSH_KEY) {
+        return new Response("合言葉がちがいます", { status: 401 });
+      }
+      if (!台帳あり) return new Response("D1 がまだ繋がっていません", { status: 503 });
+
+      let 中身;
+      try { 中身 = await req.json(); }
+      catch (e) { return new Response("JSON ではありません", { status: 400 }); }
+
+      const 返す = o => Response.json(o, { headers: { "Cache-Control": "no-store" } });
+
+      // ★① 画面用のJSONを丸ごと置く（★組み立てはPC側の export_json.py のまま
+      //     ＝★同じロジックを2箇所に持たない）
+      if (typeof 中身.json === "string") {
+        await env.DB.prepare(
+          "CREATE TABLE IF NOT EXISTS snapshot" +
+          " (id INTEGER PRIMARY KEY AUTOINCREMENT, json TEXT, at TEXT)").run();
+        await env.DB.prepare("INSERT INTO snapshot (json, at) VALUES (?, ?)")
+          .bind(中身.json, new Date().toISOString()).run();
+        // ★古いものは10件だけ残す（★戻せるように・★増え続けない）
+        await env.DB.prepare(
+          "DELETE FROM snapshot WHERE id NOT IN" +
+          " (SELECT id FROM snapshot ORDER BY id DESC LIMIT 10)").run();
+        return 返す({ ok: true, 置いた: "snapshot", バイト: 中身.json.length });
+      }
+
+      // ★② DBの実体をそのまま入れる（★SQL文の配列・★分割して何回でも送れる）
+      if (Array.isArray(中身.sql)) {
+        const 文 = 中身.sql.filter(x => typeof x === "string" && x.trim());
+        if (!文.length) return 返す({ ok: true, 実行: 0 });
+        if (文.length > 500) return new Response("1回500文まで", { status: 413 });
+        await env.DB.batch(文.map(q => env.DB.prepare(q)));
+        return 返す({ ok: true, 実行: 文.length });
+      }
+
+      return new Response("json か sql が要ります", { status: 400 });
+    }
+
+    // ★CORSの下見（★Activityから直接叩ける形にしておく）
+    if (req.method === "OPTIONS") {
+      return new Response(null, { headers: {
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
+        "Access-Control-Allow-Headers": "content-type,x-meshi-key" } });
+    }
+
     return new Response("暁月ラボ 同期サーバー（Workers）", {
       headers: { "content-type": "text/plain; charset=utf-8" },
     });
