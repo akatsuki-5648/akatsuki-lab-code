@@ -230,6 +230,16 @@ h2 small{margin-left:auto;font-weight:500;font-size:11.5px;color:var(--dim2);let
 /* ★transform を外した（★カードが浮くたびに1枚ずつ合成レイヤーを作っていた）。
    ★transition も「色だけ」に絞る（★all だと位置や大きさまで毎回見に行く）。 */
 .card{position:relative;display:flex;gap:13px;align-items:flex-start;padding:13px;
+/* ★★2026-09-05：レア度の枠 ── ★色は今日71マスから【実測】した値をそのまま使う
+   ★金(176,146,99) 紫(100,78,127) 青(93,110,121) 緑(80,98,85)
+   ★灰はゲームでは枠を描かない → ★ここでは「枠が無い」ことが分かる薄い線にする
+   ★★推測の色は1つも作っていない（★分からないものは data-rea="" ＝線なし） */
+.card[data-rea]{border-left:3px solid transparent}
+.card[data-rea="金"]{border-left-color:#b09263}
+.card[data-rea="紫"]{border-left-color:#644e7f}
+.card[data-rea="青"]{border-left-color:#5d6e79}
+.card[data-rea="緑"]{border-left-color:#506255}
+.card[data-rea="灰"]{border-left-color:#2a2f3a}
       border-radius:var(--r);background:var(--panel);border:1px solid var(--line);
       transition:border-color .16s,background-color .16s}
 .card:hover{border-color:var(--line2);background:rgba(255,255,255,.062)}
@@ -501,7 +511,9 @@ function 描く(d, 元) {
   h += '<div class="grid">';
   for (const x of d.在庫) {
     const 持続 = 秒を読める形に(x.持続);
-    h += '<div class="card' + (少ない(x.個数) ? " low" : "") + '">' +
+    /* ★2026-09-05：レア度を data-rea で出す。★色は実測した枠の値（下のCSS） */
+    h += '<div class="card' + (少ない(x.個数) ? " low" : "")
+       + '" data-rea="' + esc(x.レア || "") + '">' +
            '<div class="ic">' + (x.icon
              ? '<img src="' + esc(x.icon) + '" alt="' + esc(x.名前) + '" decoding="async">'
              : '<span class="no">🍽</span>') + '</div>' +
