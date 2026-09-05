@@ -317,6 +317,28 @@ code{font:11.5px var(--mono);background:rgba(0,0,0,.42);padding:2px 7px;border-r
 
 button.back{cursor:pointer;font:inherit}
 </style>
+<script>
+/* ★★2026-09-05：★古い画面を掴んでいたら【自分で】最新へ飛ぶ
+   ★Discordクライアントのキャッシュはこちらから消せない。★だから画面側で気づいて開き直す
+   ★★?t= が付いている時は走らない＝無限ループしない
+   ★失敗しても何も起きない（★画面は普通に出る） */
+window.__版 = "20260905_223124";
+(function () {
+  try {
+    if (location.search.indexOf("t=") >= 0) return;          /* ★もう飛んだ後 */
+    fetch(location.pathname + "?probe=" + Date.now(), { cache: "no-store" })
+      .then(function (r) { return r.text(); })
+      .then(function (h) {
+        var m = h.match(/window\.__版 = "([0-9_]+)"/);
+        if (m && m[1] !== window.__版) {
+          location.replace(location.pathname + "?t=" + Date.now());   /* ★履歴を汚さない */
+        }
+      })
+      .catch(function () {});
+  } catch (e) {}
+})();
+</script>
+
 
 <header class="hero">
   <div class="heroIn">
