@@ -1,0 +1,622 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>メシコレ ── Once Human 在庫</title>
+<meta name="theme-color" content="#070a10">
+<link rel="icon" type="image/png" sizes="32x32" href="brand/mesicolle-favicon-32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="brand/mesicolle-favicon-16.png">
+<meta property="og:title" content="メシコレ ── Once Human 在庫">
+<meta property="og:description" content="作り置きの料理と素材の実測台帳。あと何回、2時間コースを回せるか。">
+<meta property="og:image" content="brand/mesicolle-ogp-1200x630.png">
+<!--
+  ★Hikârư（2026-09-03）
+    「俺がメシコレをこれだけ作ってるよーっていうのを Discordのアクティビティーを
+      HPしきにしてデータベースくんで、在庫管理と仲間に教える」
+  ★Hikârư（2026-09-05）
+    「ダッシュボードがライブコーディングじゃなくて★おしゃれなのにしてよ、★TOPアイコンも」
+
+  ★★2026-09-05 作り替えた ── ★親（ライブコーディング）と★配色もCSSも同じだったのを分けた
+    紋章（brand/）＝★こころ作。「コンバット・レーション・ダイヤル」
+      ＝携行食缶の蓋 ＋ ★青緑の2時間リング ＋ ★琥珀のフォークが前進矢印になる
+    ★この画面はその紋章の言語をそのまま使う
+      ＝背景は深い紺 ／ 数量と時間は★青緑 ／ 移動特化と注意は★琥珀 ／ 主役は★計器（リング）
+    ★親は紫（#8A2BE2）。★ここは青緑（#3fd7e8）＋琥珀（#f5a524）＝★もう似ていない
+
+  ★外部を1つも読まない（★DiscordのActivityはCSPで外部CDNを弾く）
+    フォント＝端末のもの ／ 紋章＝brand/ ／ アイコン＝icons/ ／ データ＝inventory.json（同一オリジン）
+
+  ★中身は 22_Game\oncehuman\_DB\oncehuman.db が正本。
+    ★更新は  python _DB\inv.py set 冷蔵庫 <名前> <個数>
+    ★書出は  python _DB\export_json.py     （★--icons はネットへ取りに行く時だけ）
+-->
+<style>
+:root{
+  /* ── ★紋章から取った色（★こころの絵の実物から） ── */
+  --bg:#070a10;          /* 背景＝紋章の外周の闇 */
+  --ink:#eaf0f7;
+  --dim:#8794a8;
+  --dim2:#5f6b7d;
+  --cy:#3fd7e8;          /* ★青緑＝2時間リング（数量・時間・在庫あり） */
+  --cy-d:#123c46;
+  --am:#f5a524;          /* ★琥珀＝前進の矢（移動特化・注意・食べ物） */
+  --am-d:#43310e;
+  --ok:#5fd38d;
+  --warn:#ff6b6e;
+  --panel:linear-gradient(180deg,rgba(255,255,255,.055),rgba(255,255,255,.018));
+  --line:rgba(255,255,255,.085);
+  --line2:rgba(255,255,255,.16);
+  --mono:ui-monospace,"Cascadia Mono","Consolas","SFMono-Regular",monospace;
+  --sans:system-ui,-apple-system,"Segoe UI Variable Text","Segoe UI",
+         "Yu Gothic UI","Hiragino Sans","Noto Sans JP",sans-serif;
+  --r:14px;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth;scroll-padding-top:96px}
+body{
+  margin:0;color:var(--ink);font:14px/1.75 var(--sans);
+  background:
+    radial-gradient(1100px 560px at 82% -12%, rgba(63,215,232,.11), transparent 62%),
+    radial-gradient(820px 460px at 6% 4%,   rgba(245,165,36,.055), transparent 60%),
+    var(--bg);
+}
+a{color:inherit}
+
+/* ══ ヒーロー ══════════════════════════════ */
+.hero{position:relative;overflow:hidden;border-bottom:1px solid var(--line)}
+.hero::after{               /* ★紋章の背景と同じ「薄い格子」＝台帳であることの合図 */
+  content:"";position:absolute;inset:0;pointer-events:none;opacity:.5;
+  background-image:linear-gradient(rgba(255,255,255,.028) 1px,transparent 1px),
+                   linear-gradient(90deg,rgba(255,255,255,.028) 1px,transparent 1px);
+  background-size:52px 52px;
+  -webkit-mask-image:linear-gradient(180deg,#000,transparent 88%);
+          mask-image:linear-gradient(180deg,#000,transparent 88%);
+}
+.heroIn{position:relative;z-index:1;max-width:1200px;margin:0 auto;
+        padding:22px 20px 16px;display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+.mark{width:60px;height:60px;flex:0 0 60px;
+      filter:drop-shadow(0 4px 16px rgba(63,215,232,.28))}
+.lock{min-width:0}
+h1{margin:0;font-size:23px;letter-spacing:.16em;font-weight:800;
+   background:linear-gradient(92deg,#ffffff,#bfe9f2 46%,var(--cy));
+   -webkit-background-clip:text;background-clip:text;color:transparent;white-space:nowrap}
+.lock p{margin:2px 0 0;color:var(--dim);font-size:12px;letter-spacing:.06em}
+.back{margin-left:auto;text-decoration:none;color:var(--dim);font-size:12px;
+      border:1px solid var(--line);border-radius:99px;padding:7px 15px;white-space:nowrap;
+      background:rgba(255,255,255,.02);transition:border-color .16s,color .16s}
+.back:hover{color:var(--ink);border-color:var(--cy);box-shadow:0 0 0 3px rgba(63,215,232,.09)}
+
+/* 統計レール */
+.rail{position:relative;z-index:1;max-width:1200px;margin:0 auto;
+      padding:0 20px 18px;display:flex;gap:8px;flex-wrap:wrap}
+.chip{display:flex;align-items:baseline;gap:7px;padding:6px 13px;border-radius:99px;
+      border:1px solid var(--line);background:rgba(255,255,255,.025);font-size:11.5px;color:var(--dim)}
+.chip b{font:700 14px/1 var(--mono);color:var(--ink);font-variant-numeric:tabular-nums}
+.chip.cy b{color:var(--cy)} .chip.am b{color:var(--am)}
+.chip.stamp{border-color:var(--cy-d);background:rgba(63,215,232,.07);color:#a7d9e2}
+
+/* ══ 目次（横スクロールのチップ） ══════════════ */
+/* ★2026-09-05 ぼかしをやめた ── ★backdrop-filter は
+   ★スクロールのたびに背後の全画素をぼかし直す＝★縦2万pxのこの画面では一番重い。
+   ★不透明にすれば見た目はほとんど変わらず、スクロールが軽くなる。 */
+.nav{position:sticky;top:0;z-index:20;
+     background:#080c13;
+     border-bottom:1px solid var(--line)}
+.navIn{max-width:1200px;margin:0 auto;padding:9px 20px;display:flex;gap:7px;
+       overflow-x:auto;scrollbar-width:none}
+.navIn::-webkit-scrollbar{display:none}
+.navIn a{text-decoration:none;white-space:nowrap;font-size:12px;color:var(--dim);
+         padding:6px 13px;border-radius:99px;border:1px solid transparent;
+         transition:background-color .16s,color .16s}
+.navIn a:hover{color:var(--ink);background:rgba(255,255,255,.05)}
+.navIn a.on{color:var(--bg);background:var(--cy);font-weight:700;border-color:var(--cy)}
+
+main{max-width:1200px;margin:0 auto;padding:8px 20px 72px}
+
+/* ★★2026-09-05 ここが一番効く ── ★画面の外にある塊は描画も配置もしない。
+   ★要素は1,971個あるが、実際に描くのは見えている分だけになる。
+   ★contain-intrinsic-size ＝「見えていない間の高さの見積り」。
+     ★これが無いとスクロールバーが暴れる（auto を付けると一度測った実寸を覚える）。
+   ★★かける先は【一番大きい2つ】だけにした ── ★軽い塊にかけると、
+     ★見積りの誤差でスクロールバーが伸び縮みして★かえって引っかかって見える。
+     ★実測（幅315px）: 表7,246px ／ カード4,407px ／ 素材1,359px ／ 枠39〜579px */
+.grid{content-visibility:auto;contain-intrinsic-size:auto 2000px}
+.tw  {content-visibility:auto;contain-intrinsic-size:auto 6500px}
+
+/* ══ 見出し ══════════════════════════════ */
+h2{display:flex;align-items:center;gap:11px;margin:40px 0 14px;
+   font-size:15px;font-weight:700;letter-spacing:.06em}
+h2::before{content:attr(data-n);font:700 11px/1 var(--mono);color:var(--cy);
+           border:1px solid var(--cy-d);background:rgba(63,215,232,.08);
+           border-radius:6px;padding:5px 7px;letter-spacing:.08em}
+h2 small{margin-left:auto;font-weight:500;font-size:11.5px;color:var(--dim2);letter-spacing:.04em}
+.lead{margin:-6px 0 14px;color:var(--dim);font-size:12px;line-height:1.85}
+.lead b{color:#c6d0dd}
+
+/* ══ はじめに ══════════════════════════════ */
+.intro{max-width:1200px;margin:18px auto 0;padding:0 20px}
+.intro .box{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);
+            padding:15px 17px;position:relative;overflow:hidden}
+.intro .box::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;
+                    background:linear-gradient(180deg,var(--cy),var(--am))}
+.intro h3{margin:0 0 7px;font-size:13.5px;letter-spacing:.04em}
+.intro p{margin:0;font-size:12.5px;color:#c2ccd9;line-height:1.9}
+.intro ul{margin:10px 0 0;padding-left:19px;font-size:12px;color:var(--dim);line-height:2}
+.intro b{color:var(--ink)}
+.intro .aka{color:var(--warn)}
+
+/* ══ 計器（2時間コース） ══════════════════════ */
+.dials{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(288px,1fr))}
+.dbox{position:relative;overflow:hidden;border-radius:18px;padding:18px;
+      background:var(--panel);border:1px solid var(--line)}
+.dbox.main{border-color:rgba(63,215,232,.34);
+           background:linear-gradient(158deg,rgba(63,215,232,.10),rgba(255,255,255,.02) 52%)}
+.dbox.main::after{content:"";position:absolute;right:-70px;top:-70px;width:210px;height:210px;
+                  border-radius:50%;background:radial-gradient(closest-side,rgba(63,215,232,.16),transparent)}
+.dhead{display:flex;align-items:center;gap:9px;margin-bottom:13px;position:relative;z-index:1}
+.dhead h4{margin:0;font-size:12.5px;color:#b9c5d4;font-weight:700;letter-spacing:.06em}
+.pill{font-size:10px;letter-spacing:.08em;padding:3px 9px;border-radius:99px;
+      border:1px solid var(--am-d);background:rgba(245,165,36,.11);color:var(--am);font-weight:700}
+.dbody{display:flex;align-items:center;gap:17px;position:relative;z-index:1}
+.dial{--p:100;width:106px;height:106px;flex:0 0 106px;border-radius:50%;position:relative;
+      background:conic-gradient(var(--cy) calc(var(--p)*1%),rgba(255,255,255,.07) 0);
+      filter:drop-shadow(0 0 14px rgba(63,215,232,.18))}
+.dial.am{background:conic-gradient(var(--am) calc(var(--p)*1%),rgba(255,255,255,.07) 0);
+         filter:drop-shadow(0 0 14px rgba(245,165,36,.2))}
+.dial::before{content:"";position:absolute;inset:9px;border-radius:50%;
+              background:radial-gradient(circle at 34% 28%,#141b26,#080c13);
+              border:1px solid var(--line)}
+.dnum{position:absolute;inset:0;display:grid;place-items:center;text-align:center;line-height:1}
+.dnum b{font:800 34px/1 var(--mono);font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+.dnum span{display:block;font-size:10px;color:var(--dim);margin-top:4px;letter-spacing:.1em}
+.dside{min-width:0;flex:1}
+.dside .t{font-size:12.5px;color:#c2ccd9;line-height:1.8}
+
+/* 枠の内訳 */
+.waku{margin-top:13px;display:grid;gap:6px;position:relative;z-index:1}
+.wrow{display:grid;grid-template-columns:46px 1fr auto;gap:9px;align-items:baseline;
+      padding:8px 11px;border-radius:10px;background:rgba(255,255,255,.03);
+      border:1px solid var(--line);font-size:12.5px}
+.wrow .wk{font:600 10.5px/1.4 var(--mono);color:var(--dim2);letter-spacing:.04em}
+.wrow .wn{font-weight:700;min-width:0;overflow-wrap:anywhere}
+.wrow .wq{font:800 14px/1 var(--mono);color:var(--cy);font-variant-numeric:tabular-nums}
+.wrow .we{grid-column:2/4;color:var(--dim);font-size:11.5px;line-height:1.6;margin-top:1px}
+.wrow.bn{border-color:var(--am-d);background:rgba(245,165,36,.075)}
+.wrow.bn .wq{color:var(--am)}
+.wrow.bn .wk::after{content:" ●";color:var(--am)}
+.wrow.none{opacity:.45}
+.wrow.none .wq{color:var(--dim2)}
+.note{margin-top:12px;font-size:11.5px;color:var(--dim);line-height:1.85;position:relative;z-index:1}
+.note b{color:#c6d0dd}
+
+/* ══ みんなのバフ ══════════════════════════ */
+.gtitle{display:flex;align-items:center;gap:9px;margin:20px 0 8px;font-size:12px;color:var(--dim)}
+.gtitle i{font-style:normal;font-weight:700;letter-spacing:.1em;color:#c2ccd9}
+.gtitle .bar{flex:1;height:1px;background:var(--line)}
+.gtitle .cnt{font:600 11px/1 var(--mono);color:var(--dim2)}
+.buffs{display:grid;gap:7px;grid-template-columns:repeat(auto-fill,minmax(330px,1fr))}
+.brow{position:relative;padding:10px 13px 10px 15px;border-radius:11px;
+      background:var(--panel);border:1px solid var(--line);
+      transition:border-color .16s,background-color .16s}
+.brow::before{content:"";position:absolute;left:0;top:11px;bottom:11px;width:3px;
+              border-radius:0 3px 3px 0;background:var(--cy)}
+.brow.食べ物::before{background:var(--am)}
+.brow.使用::before{background:#9b8cff}
+.brow.保存::before{background:#6b7a8f}
+.brow:hover{border-color:var(--line2);background:rgba(255,255,255,.06)}
+.brow.off{opacity:.42}
+.brow.off::before{background:var(--dim2)}
+.btop{display:flex;align-items:baseline;gap:9px}
+.bn2{font-weight:700;font-size:13px;min-width:0;overflow-wrap:anywhere}
+.bb{font-size:11px;color:#7fc9d8}
+.bq{margin-left:auto;font:800 14px/1 var(--mono);color:var(--ok);font-variant-numeric:tabular-nums}
+.brow.off .bq{color:var(--dim2);font-weight:600}
+.be{margin-top:3px;font-size:11.5px;color:var(--dim);line-height:1.65}
+.dur{display:inline-block;margin-left:6px;font:600 10.5px/1 var(--mono);color:var(--cy);
+     border:1px solid var(--cy-d);background:rgba(63,215,232,.08);border-radius:5px;padding:3px 6px}
+
+/* ══ 素材 ══════════════════════════════ */
+.mats{display:grid;gap:7px;grid-template-columns:repeat(auto-fill,minmax(214px,1fr))}
+.mrow{display:flex;align-items:baseline;justify-content:space-between;gap:9px;
+      padding:9px 13px;border-radius:11px;background:var(--panel);border:1px solid var(--line);
+      font-size:13px;transition:border-color .16s}
+.mrow:hover{border-color:var(--line2)}
+.mrow .mn{min-width:0;overflow-wrap:anywhere}
+.mrow .mq{font:800 14px/1 var(--mono);color:var(--cy);font-variant-numeric:tabular-nums;white-space:nowrap}
+.kari{margin-left:6px;font-size:10px;color:var(--am);border:1px solid var(--am-d);
+      background:rgba(245,165,36,.1);border-radius:5px;padding:2px 6px;vertical-align:1px}
+
+/* ══ 在庫カード ══════════════════════════ */
+.grid{display:grid;gap:11px;grid-template-columns:repeat(auto-fill,minmax(282px,1fr))}
+/* ★transform を外した（★カードが浮くたびに1枚ずつ合成レイヤーを作っていた）。
+   ★transition も「色だけ」に絞る（★all だと位置や大きさまで毎回見に行く）。 */
+.card{position:relative;display:flex;gap:13px;align-items:flex-start;padding:13px;
+      border-radius:var(--r);background:var(--panel);border:1px solid var(--line);
+      transition:border-color .16s,background-color .16s}
+.card:hover{border-color:var(--line2);background:rgba(255,255,255,.062)}
+.card .ic{width:52px;height:52px;flex:0 0 52px;border-radius:13px;position:relative;
+          background:radial-gradient(circle at 34% 26%,#161d29,#080c13);
+          border:1px solid var(--line);display:grid;place-items:center;overflow:hidden}
+.card .ic img{width:44px;height:44px;object-fit:contain}
+.card .ic .no{color:var(--dim2);font-size:19px}
+.card .b{min-width:0;flex:1}
+.row1{display:flex;align-items:baseline;gap:8px}
+.nm{font-weight:700;font-size:13.5px;line-height:1.45;min-width:0;overflow-wrap:anywhere}
+.qty{margin-left:auto;font:800 18px/1 var(--mono);font-variant-numeric:tabular-nums;
+     color:var(--cy);white-space:nowrap}
+.ef{margin-top:3px;font-size:11.5px;color:var(--dim);line-height:1.65}
+.tags{margin-top:5px;display:flex;gap:5px;flex-wrap:wrap;align-items:center}
+.tag{font-size:10px;letter-spacing:.06em;padding:2px 8px;border-radius:99px;border:1px solid;font-weight:700}
+.t食べ物{color:var(--am);border-color:var(--am-d);background:rgba(245,165,36,.1)}
+.t飲み物{color:var(--cy);border-color:var(--cy-d);background:rgba(63,215,232,.08)}
+.t使用{color:#a89bff;border-color:#332c5c;background:rgba(155,140,255,.1)}
+.t保存{color:#93a2b6;border-color:#2b3542;background:rgba(147,162,182,.08)}
+.bfn{font-size:11px;color:#7fc9d8}
+.card.low{border-color:rgba(255,107,110,.32);
+          background:linear-gradient(180deg,rgba(255,107,110,.07),rgba(255,255,255,.015))}
+.card.low .qty{color:var(--warn)}
+.fridge{font:600 10.5px/1 var(--mono);color:var(--dim2);border:1px solid var(--line);
+        border-radius:5px;padding:3px 6px}
+
+/* ══ 表 ══════════════════════════════ */
+.tw{overflow-x:auto;border:1px solid var(--line);border-radius:var(--r);background:rgba(255,255,255,.016)}
+table{border-collapse:collapse;width:100%;font-size:12.5px;min-width:520px}
+th,td{padding:9px 13px;text-align:left;vertical-align:top;border-bottom:1px solid var(--line)}
+th{position:sticky;top:44px;z-index:5;background:#0b111a;color:var(--dim);
+   font-size:11px;letter-spacing:.08em;font-weight:700}
+/* ★100行に transition を付ける意味が無いので外した */
+tbody tr:hover{background:rgba(63,215,232,.05)}
+tbody tr:last-child td{border-bottom:0}
+td .sub2{color:var(--dim);font-size:11px;line-height:1.6;margin-top:2px}
+td.n{font:800 14px/1.4 var(--mono);color:var(--cy);white-space:nowrap;
+     font-variant-numeric:tabular-nums;text-align:right}
+
+/* ══ 枠の全体像 ══════════════════════════ */
+.slots{display:grid;gap:6px;grid-template-columns:repeat(auto-fill,minmax(216px,1fr))}
+.slot{display:flex;align-items:center;gap:9px;padding:8px 12px;border-radius:10px;
+      background:var(--panel);border:1px solid var(--line);font-size:12px}
+.slot .dot{width:7px;height:7px;border-radius:50%;flex:0 0 7px;background:var(--dim2)}
+.slot.yes .dot{background:var(--cy);box-shadow:0 0 0 3px rgba(63,215,232,.16)}
+.slot.no{opacity:.4}
+.slot .nm2{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+/* ══ 足元 ══════════════════════════════ */
+.foot{margin-top:46px;padding:17px 19px;border-radius:var(--r);
+      background:var(--panel);border:1px solid var(--line);color:var(--dim);
+      font-size:11.5px;line-height:1.95}
+.foot b{color:var(--ink)}
+code{font:11.5px var(--mono);background:rgba(0,0,0,.42);padding:2px 7px;border-radius:6px;
+     border:1px solid var(--line);color:#c6d0dd}
+.err{padding:15px 17px;border-radius:var(--r);font-size:13px;
+     background:rgba(255,107,110,.09);border:1px solid rgba(255,107,110,.34);color:#ffc0c2}
+.load{color:var(--dim);font-size:12.5px;padding:26px 0}
+
+@media(max-width:520px){
+  h1{font-size:19px}
+  .mark{width:46px;height:46px;flex:0 0 46px}
+  .dial{width:88px;height:88px;flex:0 0 88px}
+  .dnum b{font-size:28px}
+  main,.heroIn,.rail,.navIn,.intro{padding-left:14px;padding-right:14px}
+}
+</style>
+
+<header class="hero">
+  <div class="heroIn">
+    <img class="mark" src="brand/mesicolle-header-mark-128.png" alt="メシコレ">
+    <div class="lock">
+      <h1>メシコレ</h1>
+      <p>Once Human ／ 作り置きの実測台帳</p>
+    </div>
+    <!-- ★Activityの中で戻れるように（★/ ＝ライブコーディング） -->
+    <a class="back" href="../">← ラボ</a>
+  </div>
+  <div class="rail" id="rail"><span class="chip">読み込み中…</span></div>
+</header>
+
+<nav class="nav"><div class="navIn" id="nav"></div></nav>
+
+<section class="intro"><div class="box">
+  <h3>🍳 メシコレって何？</h3>
+  <p>Once Human の<b>料理と素材の在庫</b>です。
+     <b>このActivityを開いた人は、全員おなじものが見えます。</b>
+     数値は実機のスクショから読んだ実測値で、更新は AI（レオ）が入れています。</p>
+  <ul>
+    <li><b>一番上＝満腹からの2時間コース</b>。★スターダストティーで満腹と水分を2時間にしてから、
+        食べ物1つ＋飲み物1つのバフを乗せます</li>
+    <li>食べ物と飲み物は<b>同時に1つずつ</b>。★ティーは「使用」枠なので<b>その2枠を食べません</b></li>
+    <li><b class="aka">赤い数字</b>＝のこり10個以下（そろそろ作る合図）</li>
+    <li><b>素材</b>＝レシピ一覧に出てこない分。★冷蔵庫を開かないと分からないので、
+        ここでしか見えません</li>
+    <li>ほしい物や減った物があったら Hikârư に言ってください。作り置きが増えます</li>
+  </ul>
+</div></section>
+
+<main id="app"><p class="load">inventory.json を読んでいます…</p></main>
+
+<script>
+"use strict";
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"]/g, m =>
+  ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;" }[m]));
+
+/* ★在庫が少ない＝目立たせる（Hikârưが「作らないと」に気づける形） */
+const 少ない = q => q <= 10;
+
+/* ★DBの duration は「秒」（実測：600 / 1800 / 3600 と空）。
+   ★生の数字は人が読めないので、分・時間に直してから出す。 */
+const 秒を読める形に = s => {
+  const n = parseInt(s, 10);
+  if (!n) return null;
+  if (n % 3600 === 0) return (n / 3600) + "時間";
+  if (n % 60 === 0)   return (n / 60) + "分";
+  return n + "秒";
+};
+
+/* ★節（見出し）を1箇所で持つ＝★目次と本文がずれない */
+const 節 = [];
+function h2(id, 題, 右) {
+  節.push({ id, 題 });
+  return '<h2 id="' + id + '" data-n="' + String(節.length).padStart(2, "0") + '">' +
+         esc(題) + (右 ? '<small>' + esc(右) + '</small>' : "") + '</h2>';
+}
+
+/* ★★どこから在庫を読むか（2026-09-05 D1へ切り替えた）
+   ★Hikârư「フレア繋いであとGITきらないとじゃんｗ」
+     ＝★更新のたびに push すると、★古い版が公開に残り続ける
+   ★/sync/inventory … ★Activityの中だけ通る（★URLマッピングで同一オリジン）＝★D1の最新
+   ★inventory.json  … ★それ以外（★ローカル配信・GitHub Pages）
+   ★★上から順に試して、通った方を使う＝★片方が駄目でも画面は出る */
+const 読み先 = [
+  "/sync/inventory",                                             // ★Activityの中（同一オリジン）
+  "https://akatsuki-lab-sync.izumoitachi.workers.dev/inventory", // ★★どこから開いてもD1が読める
+  "inventory.json"                                               // ★ローカル配信（127.0.0.1）
+];
+
+(async () => {
+  let 最後のエラー = null;
+  for (const u of 読み先) {
+    try {
+      const r = await fetch(u + (u.includes("?") ? "&" : "?") + Date.now());
+      if (!r.ok) { 最後のエラー = u + " → HTTP " + r.status; continue; }
+      const d = await r.json();
+      描く(d, u);
+      return;
+    } catch (e) { 最後のエラー = u + " → " + e.message; }
+  }
+  $("#app").innerHTML =
+    '<div class="err">在庫を読めませんでした（' + esc(最後のエラー) + '）<br>' +
+    '<code>python _DB\\export_json.py --push</code> を実行してください。</div>';
+  $("#rail").innerHTML = '<span class="chip">データなし</span>';
+})();
+
+function 描く(d, 元) {
+  const n = d.数;
+
+  /* ── ヒーローの統計レール ── */
+  $("#rail").innerHTML =
+    chip(n.料理 + "種", "料理", "cy") +
+    chip(n.料理個数.toLocaleString(), "個", "cy") +
+    chip(n.素材 + "種", "素材", "am") +
+    chip(n.素材個数.toLocaleString(), "個", "am") +
+    chip(n.レシピ + "種", "実機レシピ", "") +
+    '<span class="chip stamp">' + esc(d.版) + ' 現在</span>' +
+    /* ★どこから読んだかを出す（★D1が効いているか目で分かる）
+       🚨★2026-09-05 直した ── ★読み先を3本にした時に★ここだけ2本のままで、
+          ★D1(workers.dev)から読めているのに「📄 ファイル」と出ていた＝★画面が嘘をついた */
+    '<span class="chip" title="' + esc(元 || "") + '">' +
+      (String(元).includes("inventory.json") ? "📄 ファイル" : "☁️ D1") + '</span>';
+
+  let h = "";
+
+  /* ── ★★01 満腹からの2時間コース（Hikârưの画面設計）── */
+  const co = d.コース;
+  if (co) {
+    const なし = co.バフなし.回数, 常 = co.バフあり常用.回数;
+    const 比 = なし ? Math.round(常 / なし * 100) : 0;
+
+    h += h2("course", "満腹からの2時間コース", "★この画面の主役");
+    h += '<p class="lead">スターダストティーで満腹と水分を<b>2時間</b>にしてから走る。' +
+         '左＝ティーだけで回せる回数。右＝<b>バフを全部乗せたまま</b>回せる回数。</p>';
+    h += '<div class="dials">';
+
+    /* バフなし */
+    h += '<div class="dbox">' +
+           '<div class="dhead"><h4>バフなし</h4></div>' +
+           '<div class="dbody">' + dial(なし, 100, "") +
+             '<div class="dside"><div class="t">' + esc(co.バフなし.説明) + '<br>' +
+             '<b>' + esc(co["2時間"].料理) + '</b>（★食べ物枠も飲み物枠も使わない）</div></div>' +
+           '</div></div>';
+
+    /* ★バフあり常用＝移動特化 */
+    const jo = co.バフあり常用;
+    const 実枠 = jo.枠.filter(w => w.枠 !== "使用");
+    const 最少 = 実枠.length ? Math.min.apply(null, 実枠.map(w => w.個数)) : 0;
+    h += '<div class="dbox main">' +
+           '<div class="dhead"><h4>バフあり常用</h4><span class="pill">' + esc(jo.名前) + '</span></div>' +
+           '<div class="dbody">' + dial(常, 比, "am") +
+             '<div class="dside"><div class="t">この構成を<b>崩さずに</b>回せる回数。<br>' +
+             'ティー' + なし + '回のうち<b>' + 比 + '%</b>がフル構成で走れる。</div></div>' +
+           '</div>';
+    h += '<div class="waku">';
+    for (const w of jo.枠) {
+      const ボトル = w.枠 !== "使用" && w.個数 === 最少 && w.ある;
+      h += '<div class="wrow' + (w.ある ? "" : " none") + (ボトル ? " bn" : "") + '">' +
+             '<span class="wk">' + esc(w.枠) + '</span>' +
+             '<span class="wn">' + esc(w.名前) + '</span>' +
+             '<span class="wq">' + (w.ある ? w.個数 : "0") + '</span>' +
+             '<span class="we">' + esc(w.効果) + '</span></div>';
+    }
+    h += '</div>';
+    h += '<div class="note"><b>● が付いた枠が回数を決めている。</b>' +
+         '★入れる順番＝' + esc(co["2時間"].順番) + '</div>';
+    h += '</div></div>';
+    h += '<p class="lead" style="margin-top:14px">★草（キキョウ＝スプリント+3% ／ セージ＝移動+3%）は、' +
+         '下の<b>素材</b>で名前が確定したら足せる。</p>';
+  }
+
+  /* ── ★★02 みんなのバフ（実機レシピ62種）── */
+  if (d.みんなのバフ) {
+    const ある = d.みんなのバフ.filter(b => b.ある).length;
+    h += h2("buffs", "みんなのバフ飯", "実機レシピ " + d.みんなのバフ.length +
+            "種 ／ 在庫あり " + ある + "種");
+    h += '<p class="lead">実機のレシピ一覧から読んだ<b>' + d.みんなのバフ.length + '種すべて</b>。' +
+         '★薄いのは在庫ゼロ＝作れば増える候補。</p>';
+
+    /* ★枠が空のものも落とさない（★1つ欠けたら劣化パーツの集まり） */
+    for (const k of 枠を並べる(d.みんなのバフ.map(b => b.枠))) {
+      const g = d.みんなのバフ.filter(b => (b.枠 || "その他") === k);
+      if (!g.length) continue;
+      h += 群見出し(k, g.filter(b => b.ある).length, g.length);
+      h += '<div class="buffs">';
+      for (const b of g) {
+        const 持続 = 秒を読める形に(b.持続);
+        h += '<div class="brow ' + esc(b.枠 || "") + (b.ある ? "" : " off") + '">' +
+               '<div class="btop"><span class="bn2">' + esc(b.名前) + '</span>' +
+                 (b.効果名 ? '<span class="bb">' + esc(b.効果名) + '</span>' : "") +
+                 '<span class="bq">' + (b.ある ? b.個数 : "─") + '</span></div>' +
+               (b.効果 ? '<div class="be">' + esc(b.効果) +
+                 (持続 ? '<span class="dur">⏱ ' + esc(持続) + '</span>' : "") + '</div>' : "") +
+             '</div>';
+      }
+      h += '</div>';
+    }
+  }
+
+  /* ── ★03 素材（レシピに出ない＝冷蔵庫を開かないと分からない分）── */
+  if (d.素材 && d.素材.length) {
+    h += h2("mats", "素材", d.素材.length + "種 " + n.素材個数.toLocaleString() + "個");
+    h += '<p class="lead">レシピ一覧には出てこない＝<b>冷蔵庫を開かないと分からない分</b>。' +
+         '★橙の「仮」は名前がまだ確定していない（実機のツールチップを見れば埋まる）。</p>';
+    h += '<div class="mats">';
+    const 素 = d.素材.slice().sort((a, b) => b.個数 - a.個数);
+    for (const x of 素) {
+      h += '<div class="mrow"><span class="mn">' + esc(x.名前) +
+             (x.効果名 ? "" : '<span class="kari">仮</span>') + '</span>' +
+           '<span class="mq">' + x.個数.toLocaleString() + '</span></div>';
+    }
+    h += '</div>';
+  }
+
+  /* ── ★04 料理の在庫 ── */
+  h += h2("stock", "料理の在庫", n.料理 + "種 " + n.料理個数.toLocaleString() + "個");
+  h += '<div class="grid">';
+  for (const x of d.在庫) {
+    const 持続 = 秒を読める形に(x.持続);
+    h += '<div class="card' + (少ない(x.個数) ? " low" : "") + '">' +
+           '<div class="ic">' + (x.icon
+             ? '<img src="' + esc(x.icon) + '" alt="' + esc(x.名前) + '" decoding="async">'
+             : '<span class="no">🍽</span>') + '</div>' +
+           '<div class="b">' +
+             '<div class="row1"><span class="nm">' + esc(x.名前) + '</span>' +
+               '<span class="qty">' + x.個数.toLocaleString() + '</span></div>' +
+             (x.効果 ? '<div class="ef">' + esc(x.効果) + '</div>' : "") +
+             '<div class="tags">' +
+               (x.枠 ? '<span class="tag t' + esc(x.枠) + '">' + esc(x.枠) + '</span>' : "") +
+               (x.効果名 ? '<span class="bfn">' + esc(x.効果名) + '</span>' : "") +
+               (持続 ? '<span class="dur">⏱ ' + esc(持続) + '</span>' : "") +
+               (x.冷蔵庫 ? '<span class="fridge">冷蔵庫 ' + x.冷蔵庫 + '</span>' : "") +
+             '</div>' +
+           '</div></div>';
+  }
+  h += '</div>';
+
+  /* ── ★05 今すぐ組める（食べ物×飲み物）── */
+  h += h2("combo", "今すぐ組める組み合わせ",
+          "食べ物1 × 飲み物1 ／ " + d.組み合わせ.length + "通り");
+  if (d.組み合わせ.length) {
+    h += '<div class="tw"><table><thead><tr>' +
+         '<th>食べ物</th><th>飲み物</th><th style="text-align:right">持てる回数</th>' +
+         '</tr></thead><tbody>';
+    const 組 = d.組み合わせ.slice().sort((a, b) => b.最小個数 - a.最小個数);
+    for (const c of 組) {
+      h += '<tr><td><b>' + esc(c.食べ物) + '</b><div class="sub2">' + esc(c.食べ物効果) + '</div></td>' +
+           '<td><b>' + esc(c.飲み物) + '</b><div class="sub2">' + esc(c.飲み物効果) + '</div></td>' +
+           '<td class="n">' + c.最小個数 + '</td></tr>';
+    }
+    h += '</tbody></table></div>';
+  } else {
+    h += '<p class="lead">食べ物か飲み物の在庫がありません。</p>';
+  }
+
+  /* ── ★06 枠の全体像 ── */
+  h += h2("slots", "枠の全体像", "●＝在庫あり ／ 薄い＝作る候補");
+  for (const k of 枠を並べる(d.枠.map(s => s.枠))) {
+    const g = d.枠.filter(s => (s.枠 || "その他") === k);
+    if (!g.length) continue;
+    h += 群見出し(k, g.filter(s => s.ある).length, g.length);
+    h += '<div class="slots">';
+    for (const s of g) {
+      h += '<div class="slot ' + (s.ある ? "yes" : "no") + '"><span class="dot"></span>' +
+           '<span class="nm2" title="' + esc(s.効果名 || "") + '">' + esc(s.名前) + '</span></div>';
+    }
+    h += '</div>';
+  }
+
+  /* ── 足元 ── */
+  h += '<div class="foot">' +
+       '<b>更新のしかた（Hikârư用）</b><br>' +
+       '正本＝ <code>22_Game\\oncehuman\\_DB\\oncehuman.db</code>（Vault内）<br>' +
+       'スクショをレオに渡す → <code>python _DB\\inv.py set 冷蔵庫 &lt;名前&gt; &lt;個数&gt;</code> → ' +
+       '<code>python _DB\\export_json.py</code><br>' +
+       '★出どころ（手入力／スクショ／推定）は在庫1件ごとにDBへ残してある。' +
+       '★アイコン ' + n.アイコン同梱 + ' 枚は同梱（★外部から読み込まない＝CSPに当たらない）。' +
+       '</div>';
+
+  $("#app").innerHTML = h;
+
+  /* ── 目次を作る（★本文の見出しから作るのでずれない）── */
+  $("#nav").innerHTML = 節.map(function (s) {
+    return '<a href="#' + s.id + '">' + esc(s.題) + '</a>';
+  }).join("");
+  目次を追う();
+}
+
+/* ★枠の並び順（★知らない枠が来ても落とさずに後ろへ回す） */
+function 枠を並べる(list) {
+  const 順 = ["食べ物", "飲み物", "使用", "保存"];
+  const 全 = [];
+  for (const v of list) {
+    const k = v || "その他";
+    if (全.indexOf(k) < 0) 全.push(k);
+  }
+  return 全.sort(function (a, b) {
+    return (順.indexOf(a) + 1 || 99) - (順.indexOf(b) + 1 || 99);
+  });
+}
+function 群見出し(名, あり, 全) {
+  return '<div class="gtitle"><i>' + esc(名) + '</i><span class="bar"></span>' +
+         '<span class="cnt">' + あり + ' / ' + 全 + '</span></div>';
+}
+function chip(v, label, c) {
+  return '<span class="chip ' + (c || "") + '"><b>' + v + '</b>' + esc(label) + '</span>';
+}
+function dial(v, p, c) {
+  const pp = Math.max(0, Math.min(100, p));
+  return '<div class="dial ' + (c || "") + '" style="--p:' + pp + '">' +
+         '<div class="dnum"><div><b>' + v + '</b><span>回分</span></div></div></div>';
+}
+
+/* ★今どこを見ているかを目次に返す（★縦12,000pxあるので現在地が要る） */
+function 目次を追う() {
+  const links = Array.prototype.slice.call(document.querySelectorAll("#nav a"));
+  const 的 = links.map(function (a) {
+    return document.getElementById(a.getAttribute("href").slice(1));
+  });
+  if (!window.IntersectionObserver) return;
+  const io = new IntersectionObserver(function (es) {
+    for (const e of es) {
+      if (!e.isIntersecting) continue;
+      const i = 的.indexOf(e.target);
+      if (i < 0) continue;
+      links.forEach(function (a) { a.classList.remove("on"); });
+      links[i].classList.add("on");
+      // ★はみ出している時だけ動かす（★スクロール中に別のスクロールを起こさない）
+      const box = links[i].getBoundingClientRect();
+      const oya = links[i].parentElement.getBoundingClientRect();
+      if (box.left < oya.left || box.right > oya.right) {
+        links[i].scrollIntoView({ block: "nearest", inline: "nearest" });
+      }
+    }
+  }, { rootMargin: "-90px 0px -72% 0px" });
+  的.forEach(function (t) { if (t) io.observe(t); });
+}
+</script>
